@@ -8,6 +8,8 @@ import {
   type LayoutTarget,
 } from "./engine";
 import { auditAdaptiveLayout } from "./quality";
+import { detectVisualGroups } from "./grouping";
+import { fitTypography } from "./typography";
 
 export interface LayoutScoreBreakdown {
   relationship: number;
@@ -63,16 +65,19 @@ function findElement(layout: AdaptiveLayoutResult, semanticId: string) {
 }
 
 function relationshipScore(graph: SemanticGraph, layout: AdaptiveLayoutResult) {
+  const groups = detectVisualGroups(graph);
   const pairs = relationPairs(graph);
-  if (!pairs.length) return 100;
+  if (!pairs.length && !groups.length) return 100;
 
   let score = 0;
+  let count = 0;
   for (const [aId, bId] of pairs) {
     const a = findElement(layout, aId);
     const b = findElement(layout, bId);
     if (!a || !b) continue;
     if (a.page !== b.page) {
       score += 10;
+      count++;
       continue;
     }
     const ac = center(a);
@@ -81,8 +86,20 @@ function relationshipScore(graph: SemanticGraph, layout: AdaptiveLayoutResult) {
     const page = layout.pages[a.page]!;
     const diagonal = Math.hypot(page.width, page.height);
     score += Math.max(0, 100 - (distance / diagonal) * 120);
+    count++;
   }
-  return score / pairs.length;
+
+  for (const group of groups) {
+    const elements = group.semanticIds
+      .map((id) => findElement(layout, id))
+      .filter((element): element is LayoutElement => Boolean(element));
+    if (elements.length < 2) continue;
+    const samePage = elements.every((element) => element.page === elements[0]!.page);
+    score += samePage ? Math.min(100, 70 + group.strength * 12) : 15;
+    count++;
+  }
+
+  return count ? score / count : 100;
 }
 
 function whitespaceScore(layout: AdaptiveLayoutResult) {
@@ -151,12 +168,18 @@ function typographyScore(graph: SemanticGraph, layout: AdaptiveLayoutResult) {
       if (!node || !["text", "claim", "fact", "section"].includes(node.kind)) {
         continue;
       }
-      const chars = (node.text ?? node.label ?? "").length;
-      const area = Math.max(1, element.width * element.height);
-      const charsPer10k = (chars / area) * 10_000;
-      const target = node.kind === "section" ? 3 : 10;
-      const diff = Math.abs(charsPer10k - target);
-      total += Math.max(0, 100 - diff * 7);
+      const result = fitTypography({
+        text: node.text ?? node.label ?? "",
+        width: Math.max(1, element.width - 24),
+        height: Math.max(1, element.height - 20),
+        minFontSize: node.kind === "section" ? 20 : 12,
+        maxFontSize: node.kind === "section" ? 48 : 30,
+      });
+      element.style = {
+        ...(element.style ?? {}),
+        typography: result,
+      };
+      total += result.fits ? Math.max(65, 100 - result.estimatedLines * 2) : Math.max(0, 55 - result.overflowRatio * 80);
       count++;
     }
   }
