@@ -57,28 +57,36 @@ export async function GET(
     ? new Date(Date.now() + Math.max(0, tokens.expires_in - 60) * 1000)
     : null;
 
-  await db.oAuthConnection.upsert({
+  const existing = await db.oAuthConnection.findFirst({
     where: {
-      userId_workspaceId_provider: {
-        userId: session.user.id,
-        workspaceId: state.workspaceId ?? null,
-        provider: state.provider,
-      },
-    },
-    create: {
       userId: session.user.id,
-      workspaceId: state.workspaceId,
+      workspaceId: state.workspaceId ?? null,
       provider: state.provider,
-      scopes: (tokens.scope ?? "").split(" ").filter(Boolean),
-      encryptedTokens: encodeTokens(tokens),
-      expiresAt,
     },
-    update: {
-      scopes: (tokens.scope ?? "").split(" ").filter(Boolean),
-      encryptedTokens: encodeTokens(tokens),
-      expiresAt,
-    },
+    select: { id: true },
   });
+
+  const data = {
+    scopes: (tokens.scope ?? "").split(" ").filter(Boolean),
+    encryptedTokens: encodeTokens(tokens),
+    expiresAt,
+  };
+
+  if (existing) {
+    await db.oAuthConnection.update({
+      where: { id: existing.id },
+      data,
+    });
+  } else {
+    await db.oAuthConnection.create({
+      data: {
+        userId: session.user.id,
+        workspaceId: state.workspaceId,
+        provider: state.provider,
+        ...data,
+      },
+    });
+  }
 
   const destination = new URL("/intelligence", request.url);
   destination.searchParams.set("connector", state.provider);
