@@ -174,7 +174,9 @@
     "y-protocols": "^1.0.6",
     "lib0": "^0.2.114",
     "ws": "^8.18.0",
-    "slate-dom": "0.112.2"
+    "slate-dom": "0.112.2",
+    "slate-hyperscript": "0.100.0",
+    "slate-history": "0.100.0"
   },
   "devDependencies": {
     "@tailwindcss/container-queries": "^0.1.1",
