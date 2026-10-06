@@ -180,3 +180,49 @@ IMAGE_EDIT_API_KEY=
 The editor also exposes a generalized `POST /api/editor/in-place` planning endpoint for element-scoped text, image, chart, diagram, shape, table, data and theme operations. This keeps edits local to the selected element and preserves an undoable workflow instead of regenerating an entire artifact.
 
 The project intentionally does not hard-code a specific hosted SAM checkpoint or image inpainting model. Production deployments can point the adapter at a validated SAM/Grounded-SAM + inpainting service without coupling the editor to one vendor.
+
+
+## Production execution stack
+
+This repository now includes concrete execution paths for the previously adapter-only areas.
+
+### Binary exporters
+
+`POST /api/exports/render` accepts a document ID and `pptx`, `docx`, `xlsx`, or `pdf`. It normalizes presentation/artifact content and generates real binary files with PptxGenJS, docx, ExcelJS, and pdf-lib.
+
+### Marketplace transactions
+
+`POST /api/marketplace/checkout` creates durable free/paid purchases. Paid transactions use Stripe Checkout. `POST /api/webhooks/stripe` verifies signatures, deduplicates webhook events, settles paid purchases, increments marketplace sales, and records refunds.
+
+### OAuth and data sync
+
+Google and Microsoft OAuth flows are available under `/api/connectors/oauth/[provider]/start` and `callback`. Tokens are encrypted with AES-256-GCM using `APP_ENCRYPTION_KEY`, refreshed server-side, and never exposed to the client after storage.
+
+Persistent data connections can execute Google Sheets, Microsoft Excel/Graph, and HTTPS REST syncs through `POST /api/connectors/data/[id]/sync`. Every run records status, row counts, timestamps, result payloads, and errors.
+
+### Realtime collaboration
+
+The dedicated `server/collaboration.mjs` process hosts Yjs rooms over WebSockets. Room access uses short-lived signed tokens from `/api/collaboration/token`; Yjs updates and state vectors are persisted to PostgreSQL. The presentation editor binds slide state to the room in real time.
+
+Run locally with:
+
+```bash
+npm run collab
+```
+
+and set `NEXT_PUBLIC_COLLABORATION_URL=ws://localhost:1234`.
+
+### Multi-format drag-and-drop editing
+
+`/studio/[id]` uses a reusable dnd-kit artifact canvas backed by `GET/PATCH /api/artifacts/[id]`. Structured blocks can be reordered and edited while remaining format-neutral for later PPTX/DOCX/PDF/XLSX rendering.
+
+### Workflow execution
+
+`POST /api/automation/[id]/run` executes persisted workflow graphs in dependency order, stores node state after each step, supports transform/analyze/chart/diagram/notify/approval behavior, records success/failure/partial status, and preserves run results for auditing.
+
+### Deployment and validation
+
+- `Dockerfile`: multi-stage production build
+- `docker-compose.yml`: Next.js web, Yjs collaboration server, and PostgreSQL
+- `GET /api/health`: database-backed readiness check
+- `.github/workflows/ci.yml`: Prisma validation/generation, TypeScript checking, and production Next.js build on pull requests and main
