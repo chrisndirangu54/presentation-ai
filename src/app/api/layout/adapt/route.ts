@@ -5,10 +5,11 @@ import { auditAdaptiveLayout } from "@/lib/layout/quality";
 import { solveLayoutConstraints } from "@/lib/layout/solver";
 import { decideResponsiveContent } from "@/lib/layout/transform";
 import type { SemanticGraph } from "@/lib/semantic/graph";
+import { resolveLayoutPreferences } from "@/server/layout-learning";
 
 export async function POST(request: Request) {
   const session = await auth();
-  if (!session?.user) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -18,6 +19,9 @@ export async function POST(request: Request) {
     brandTokens?: BrandTokens;
     candidates?: number;
     iterations?: number;
+    workspaceId?: string;
+    industry?: string;
+    audience?: string;
   };
 
   if (!body.graph || !body.target) {
@@ -27,11 +31,22 @@ export async function POST(request: Request) {
     );
   }
 
+  const learnedWeights = await resolveLayoutPreferences({
+    userId: session.user.id,
+    workspaceId: body.workspaceId,
+    industry: body.industry,
+    audience: body.audience,
+    target: body.target,
+    isAdmin: session.user.isAdmin,
+  });
+
   const solved = solveLayoutConstraints(body.graph, body.target, {
     brandTokens: body.brandTokens,
     candidates: body.candidates,
     iterations: body.iterations,
+    learnedWeights,
   });
+
   const layout = solved.best.layout;
   const quality = auditAdaptiveLayout(layout);
   const contentDecisions = decideResponsiveContent(body.graph, body.target);
@@ -40,6 +55,7 @@ export async function POST(request: Request) {
     layout,
     quality,
     contentDecisions,
+    learnedWeights,
     solver: {
       bestScore: solved.best.score,
       candidates: solved.candidates.map((candidate) => ({
