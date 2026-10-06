@@ -152,3 +152,31 @@ The database now contains foundations for scheduled automation workflows, live d
 Connector descriptors now cover Google Sheets, Excel/Graph, SQL, REST APIs, Airtable, Notion, Power BI, Tableau, Salesforce and HubSpot in addition to the earlier integrations.
 
 Publishing models support visibility controls, expiry, custom-domain configuration, engagement events and A/B experiment variants. Actual third-party synchronization, SSO, BI embedding, payment settlement, real-time collaboration transport, video rendering and external automation execution remain provider-dependent integration work and are intentionally isolated behind adapters.
+
+
+## In-place editing and segmented image editing
+
+Presentation text already edits directly in the Plate canvas. The image editor now extends the same in-place workflow to image objects.
+
+Double-click a presentation image to open segmentation-aware editing controls. Supported edit intents include:
+
+- object removal
+- object replacement
+- object recoloring
+- background removal
+- background replacement
+
+Automatic object selection uses the authenticated `POST /api/images/segment` adapter. It supports manual-mask, SAM 2, Grounded SAM 2 and custom-provider modes. A configured remote provider can be attached with:
+
+```
+IMAGE_SEGMENTATION_ENDPOINT=
+IMAGE_SEGMENTATION_API_KEY=
+IMAGE_EDIT_ENDPOINT=
+IMAGE_EDIT_API_KEY=
+```
+
+`POST /api/images/edit` forwards a selected mask plus the requested operation to the configured image-edit service. Successful edits replace the image in-place and store an edit-history entry with the previous URL, output URL, selection prompt, operation and timestamp.
+
+The editor also exposes a generalized `POST /api/editor/in-place` planning endpoint for element-scoped text, image, chart, diagram, shape, table, data and theme operations. This keeps edits local to the selected element and preserves an undoable workflow instead of regenerating an entire artifact.
+
+The project intentionally does not hard-code a specific hosted SAM checkpoint or image inpainting model. Production deployments can point the adapter at a validated SAM/Grounded-SAM + inpainting service without coupling the editor to one vendor.

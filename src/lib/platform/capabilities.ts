@@ -31,6 +31,11 @@ export const platformCapabilities = {
     "maps and geospatial storytelling",
     "editable infographic composition",
     "responsive multi-format layouts",
+    "in-place visual editing",
+    "SAM-style object segmentation",
+    "object removal replacement and recoloring",
+    "background removal and replacement",
+    "non-destructive image edit history",
   ],
   data: [
     "Google Sheets, Excel and CSV",
