@@ -83,7 +83,7 @@ function graphFromBlocks(blocks: ArtifactBlock[]): SemanticGraph {
     nodes: blocks.map((block) => ({
       id: block.id,
       kind: semanticKind(block.type),
-      label: block.text?.slice(0, 80) || block.type,
+      label: block.text?.slice(0, 80) ?? block.type,
       text: block.text,
       value: block.data,
       metadata: block.imageUrl ? { imageUrl: block.imageUrl } : undefined,
