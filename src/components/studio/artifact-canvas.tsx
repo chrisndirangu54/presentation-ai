@@ -105,6 +105,10 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
   const [layoutStatus, setLayoutStatus] = useState<
     "idle" | "generating" | "ready" | "error"
   >("idle");
+  const [layoutScore, setLayoutScore] = useState<number | null>(null);
+  const [layoutCandidates, setLayoutCandidates] = useState<
+    Array<{ id: string; rank?: number; score: { total: number }; layout: AdaptiveLayoutResult }>
+  >([]);
 
   const roomRef = useRef<Y.Map<string> | null>(null);
   const remoteJsonRef = useRef<string | null>(null);
@@ -266,8 +270,19 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
 
     const payload = (await response.json()) as {
       layout: AdaptiveLayoutResult;
+      solver?: {
+        bestScore?: { total: number };
+        candidates?: Array<{
+          id: string;
+          rank?: number;
+          score: { total: number };
+          layout: AdaptiveLayoutResult;
+        }>;
+      };
     };
     setAdaptiveLayout(payload.layout);
+    setLayoutScore(payload.solver?.bestScore?.total ?? null);
+    setLayoutCandidates(payload.solver?.candidates ?? []);
     setLayoutStatus("ready");
     setStatus("Unsaved");
   };
@@ -306,6 +321,7 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
           <span>{status}</span>
           <span>· Collaboration: {collaboration}</span>
           <span>· Layout: {layoutStatus}</span>
+          {layoutScore !== null && <span>· Score: {Math.round(layoutScore)}</span>}
         </div>
         <div className="flex flex-wrap gap-2">
           <select
@@ -349,7 +365,16 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
       </div>
 
       {adaptiveLayout && (
-        <AdaptivePreview layout={adaptiveLayout} blockMap={blockMap} />
+        <AdaptivePreview
+          layout={adaptiveLayout}
+          blockMap={blockMap}
+          candidates={layoutCandidates}
+          onSelectCandidate={(candidate) => {
+            setAdaptiveLayout(candidate.layout);
+            setLayoutScore(candidate.score.total);
+            setStatus("Unsaved");
+          }}
+        />
       )}
 
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
@@ -377,9 +402,23 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
 function AdaptivePreview({
   layout,
   blockMap,
+  candidates,
+  onSelectCandidate,
 }: {
   layout: AdaptiveLayoutResult;
   blockMap: Map<string, ArtifactBlock>;
+  candidates: Array<{
+    id: string;
+    rank?: number;
+    score: { total: number };
+    layout: AdaptiveLayoutResult;
+  }>;
+  onSelectCandidate: (candidate: {
+    id: string;
+    rank?: number;
+    score: { total: number };
+    layout: AdaptiveLayoutResult;
+  }) => void;
 }) {
   return (
     <section className="rounded-2xl border bg-card p-4">
@@ -398,6 +437,21 @@ function AdaptivePreview({
           </span>
         )}
       </div>
+
+      {candidates.length > 1 && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {candidates.slice(0, 5).map((candidate) => (
+            <button
+              key={candidate.id}
+              type="button"
+              className="rounded-full border px-3 py-1 text-xs hover:bg-muted"
+              onClick={() => onSelectCandidate(candidate)}
+            >
+              #{candidate.rank ?? "?"} · {Math.round(candidate.score.total)}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="grid gap-4 xl:grid-cols-2">
         {layout.pages.map((page) => (
