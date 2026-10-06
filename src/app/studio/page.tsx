@@ -25,7 +25,10 @@ export default async function StudioPage() {
             <h2 className="text-2xl font-semibold">Create</h2>
             <p className="text-sm text-muted-foreground">Choose an output type.</p>
           </div>
-          <Link className="text-sm underline underline-offset-4" href="/marketplace">Browse marketplace</Link>
+          <div className="flex gap-3 text-sm">
+            <Link className="underline underline-offset-4" href="/intelligence">Creative intelligence</Link>
+            <Link className="underline underline-offset-4" href="/marketplace">Browse marketplace</Link>
+          </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {outputCatalog.map((output) => (

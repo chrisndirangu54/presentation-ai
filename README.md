@@ -126,3 +126,29 @@ Authenticated endpoints now accept structured specs for:
 Template discovery is available at `GET /api/templates`.
 
 These endpoints intentionally return editable semantic specifications. Production renderers can translate those specs into SVG/canvas/HTML and then into PPTX, PDF, PNG or other export formats without losing the underlying structure.
+
+
+## Creative intelligence layer
+
+The `/intelligence` workspace adds higher-level orchestration around the artifact and visual engines.
+
+### One source → many outputs
+
+`POST /api/intelligence/source-to-many` creates a shared plan for converting the same evidence set into multiple coordinated artifacts. The goal is to keep facts, citations, brand language and visual conventions consistent while adapting density and structure for each format.
+
+### Design and audience review
+
+- `POST /api/intelligence/design-review` performs deterministic checks for readability, contrast, accessibility, brand compliance, evidence and data-integrity risks.
+- `POST /api/intelligence/audience` simulates proof expectations and likely questions for investor, executive, customer, technical, academic, regulatory and general audiences.
+
+### Automation
+
+`POST /api/automation/validate` validates workflow graphs made from trigger, research, transform, analyze, chart, diagram, design, review, approval, export, publish and notification nodes.
+
+The database now contains foundations for scheduled automation workflows, live data connections, approval processes, bulk/mail-merge generation jobs and source-to-many output jobs.
+
+### Live data and publishing
+
+Connector descriptors now cover Google Sheets, Excel/Graph, SQL, REST APIs, Airtable, Notion, Power BI, Tableau, Salesforce and HubSpot in addition to the earlier integrations.
+
+Publishing models support visibility controls, expiry, custom-domain configuration, engagement events and A/B experiment variants. Actual third-party synchronization, SSO, BI embedding, payment settlement, real-time collaboration transport, video rendering and external automation execution remain provider-dependent integration work and are intentionally isolated behind adapters.
