@@ -28,18 +28,21 @@ export async function GET(request: Request) {
     },
   });
 
-  const base = artifact
-    ? artifact.base
-    : await db.baseDocument.findUnique({
-        where: { id: artifactId },
-        include: { workspace: { include: { members: true } } },
-      });
+  let base = artifact?.base;
+  let workspace = artifact?.workspace ?? null;
 
   if (!base) {
-    return NextResponse.json({ error: "Artifact not found" }, { status: 404 });
+    const fallbackBase = await db.baseDocument.findUnique({
+      where: { id: artifactId },
+      include: { workspace: { include: { members: true } } },
+    });
+    if (!fallbackBase) {
+      return NextResponse.json({ error: "Artifact not found" }, { status: 404 });
+    }
+    base = fallbackBase;
+    workspace = fallbackBase.workspace;
   }
 
-  const workspace = artifact?.workspace ?? base.workspace;
   const membership = workspace?.members.find(
     (member) => member.userId === session.user.id,
   );
