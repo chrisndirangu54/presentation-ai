@@ -226,3 +226,29 @@ and set `NEXT_PUBLIC_COLLABORATION_URL=ws://localhost:1234`.
 - `docker-compose.yml`: Next.js web, Yjs collaboration server, and PostgreSQL
 - `GET /api/health`: database-backed readiness check
 - `.github/workflows/ci.yml`: Prisma validation/generation, TypeScript checking, and production Next.js build on pull requests and main
+
+
+## Universal semantic canvas
+
+The `/semantic` workspace adds a shared content graph underneath presentations, reports, dashboards, infographics, posters and social artifacts.
+
+### Shared facts, metrics and components
+
+Semantic nodes represent facts, claims, metrics, text, visuals, sources, people, organizations, products, sections and reusable components. `ArtifactBinding` records connect a semantic node to a specific artifact element/property.
+
+- `PATCH /api/semantic/nodes/[id]` updates the canonical node and reports all affected bindings.
+- `POST /api/semantic/nodes/[id]/propagate` applies the current semantic value to unlocked artifact bindings and records lineage.
+- `POST /api/semantic/bindings` creates or replaces element bindings.
+- `GET /api/semantic/search` searches the workspace semantic layer.
+
+### Metrics, consistency and lineage
+
+`POST /api/metrics` creates governed metric definitions and optional authoritative snapshots. Cross-artifact conflicts can be checked through `POST /api/intelligence/consistency`. Data lineage, freshness state and transformation records are modeled explicitly so users can trace where a number came from and when it was observed.
+
+### Quality and publishing governance
+
+`POST /api/governance/quality-gate` creates a persistent pre-publish assessment across evidence, freshness, consistency, accessibility, brand compliance and classification risk. Workflow publishing refuses artifacts whose latest gate is `BLOCK` unless an authorized owner/admin creates a reasoned override through `POST /api/governance/quality-gate/override`.
+
+### Brand and template intelligence
+
+`POST /api/brand/extract` derives palette, font and logo candidates from supplied HTML/CSS/brand text. `POST /api/templates/remix` combines layout, typography and visual systems declaratively. Fingerprinting utilities support marketplace originality and asset-similarity workflows without allowing executable template code.
