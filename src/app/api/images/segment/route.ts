@@ -22,23 +22,62 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unsupported segmentation provider" }, { status: 400 });
   }
 
-  if (provider.promptable && !input.prompt?.trim() && !input.points?.length && !input.box) {
+  if (
+    provider.promptable &&
+    !input.prompt?.trim() &&
+    !input.points?.length &&
+    !input.box
+  ) {
     return NextResponse.json(
       { error: "Provide a text prompt, points or a box selection" },
       { status: 400 },
     );
   }
 
-  const configured =
-    providerId === "manual-mask" ||
-    Boolean(process.env.IMAGE_SEGMENTATION_ENDPOINT);
+  if (providerId === "manual-mask") {
+    return NextResponse.json({
+      provider,
+      configured: true,
+      mode: "manual",
+      request: input,
+    });
+  }
+
+  const endpoint = process.env.IMAGE_SEGMENTATION_ENDPOINT;
+  if (!endpoint) {
+    return NextResponse.json({
+      provider,
+      configured: false,
+      request: input,
+      nextAction: "Configure IMAGE_SEGMENTATION_ENDPOINT or use manual-mask",
+    });
+  }
+
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  };
+  if (process.env.IMAGE_SEGMENTATION_API_KEY) {
+    headers.authorization = `Bearer ${process.env.IMAGE_SEGMENTATION_API_KEY}`;
+  }
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(input),
+  });
+
+  const payload = (await response.json()) as Record<string, unknown>;
+  if (!response.ok) {
+    return NextResponse.json(
+      { error: "Segmentation provider failed", providerResponse: payload },
+      { status: 502 },
+    );
+  }
 
   return NextResponse.json({
     provider,
-    configured,
-    request: input,
-    nextAction: configured
-      ? "execute-segmentation"
-      : "configure IMAGE_SEGMENTATION_ENDPOINT or use manual-mask",
+    configured: true,
+    mode: "remote",
+    result: payload,
   });
 }
