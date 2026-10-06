@@ -37,8 +37,12 @@ async function exportDocument(config: Record<string, unknown>) {
     target,
     normalizeRenderable(base.title, payload),
   );
+  const bytes = rendered.bytes.buffer.slice(
+    rendered.bytes.byteOffset,
+    rendered.bytes.byteOffset + rendered.bytes.byteLength,
+  ) as ArrayBuffer;
   const file = new UTFile(
-    [rendered.bytes],
+    [bytes],
     `${base.title.replace(/[^a-z0-9-_]+/gi, "_") || "artifact"}.${rendered.extension}`,
     { type: rendered.contentType },
   );
