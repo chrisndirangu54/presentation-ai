@@ -4,26 +4,21 @@ generator client {
 
 datasource db {
     provider = "postgresql"
-    // NOTE: When using mysql or sqlserver, uncomment the @db.Text annotations in model Account below
-    // Further reading:
-    // https://next-auth.js.org/adapters/prisma#create-the-prisma-schema
-    // https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference#string
     url      = env("DATABASE_URL")
 }
 
-// Necessary for Next auth
 model Account {
     id                       String  @id @default(cuid())
     userId                   String
     type                     String
     provider                 String
     providerAccountId        String
-    refresh_token            String? // @db.Text
-    access_token             String? // @db.Text
+    refresh_token            String?
+    access_token             String?
     expires_at               Int?
     token_type               String?
     scope                    String?
-    id_token                 String? // @db.Text
+    id_token                 String?
     session_state            String?
     user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
     refresh_token_expires_in Int?
@@ -32,8 +27,65 @@ model Account {
 }
 
 enum UserRole {
+    SUPER_ADMIN
     ADMIN
     USER
+}
+
+enum WorkspaceRole {
+    OWNER
+    ADMIN
+    EDITOR
+    COMMENTER
+    VIEWER
+}
+
+enum SubscriptionPlan {
+    FREE
+    PRO
+    TEAM
+    BUSINESS
+    ENTERPRISE
+}
+
+enum SourceKind {
+    PDF
+    DOCX
+    PPTX
+    XLSX
+    CSV
+    URL
+    YOUTUBE
+    GOOGLE_DRIVE
+    TEXT
+    IMAGE
+    AUDIO
+}
+
+enum ExportFormat {
+    PPTX
+    PDF
+    GOOGLE_SLIDES
+    DOCX
+    PNG
+    SVG
+    JSON
+}
+
+enum ExportStatus {
+    QUEUED
+    RUNNING
+    SUCCEEDED
+    FAILED
+}
+
+enum ProviderKind {
+    TEXT
+    IMAGE
+    VIDEO
+    EMBEDDING
+    SPEECH
+    SEARCH
 }
 
 model User {
@@ -55,13 +107,52 @@ model User {
     role      UserRole @default(USER)
     hasAccess Boolean  @default(false)
 
-    // Document system
-    documents BaseDocument[]
-    favorites FavoriteDocument[]
+    documents        BaseDocument[]
+    favorites        FavoriteDocument[]
+    CustomTheme      CustomTheme[]
+    GeneratedImage   GeneratedImage[]
+    memberships      WorkspaceMember[]
+    ownedWorkspaces  Workspace[]          @relation("WorkspaceOwner")
+    comments         PresentationComment[]
+    usageEvents      UsageEvent[]
+    auditLogs        AuditLog[]            @relation("AuditActor")
+    apiKeys          ApiCredential[]
+}
 
-    CustomTheme CustomTheme[]
+model Workspace {
+    id             String           @id @default(cuid())
+    name           String
+    slug           String           @unique
+    ownerId        String
+    owner          User             @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+    plan           SubscriptionPlan @default(FREE)
+    brandName      String?
+    createdAt      DateTime         @default(now())
+    updatedAt      DateTime         @updatedAt
+    members        WorkspaceMember[]
+    documents      BaseDocument[]
+    brandKits      BrandKit[]
+    templates      PresentationTemplate[]
+    providerConfigs ModelProviderConfig[]
+    webhooks       WebhookEndpoint[]
+    auditLogs      AuditLog[]
+    apiKeys        ApiCredential[]
+    sources        SourceDocument[]
 
-    GeneratedImage GeneratedImage[]
+    @@index([ownerId])
+}
+
+model WorkspaceMember {
+    id          String        @id @default(cuid())
+    workspaceId String
+    userId      String
+    role        WorkspaceRole @default(EDITOR)
+    createdAt   DateTime      @default(now())
+    workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+    user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([workspaceId, userId])
+    @@index([userId])
 }
 
 enum DocumentType {
@@ -83,30 +174,231 @@ model BaseDocument {
     type         DocumentType
     userId       String
     user         User          @relation(fields: [userId], references: [id])
+    workspaceId  String?
+    workspace    Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
     thumbnailUrl String?
     createdAt    DateTime      @default(now())
     updatedAt    DateTime      @updatedAt
     isPublic     Boolean       @default(false)
     documentType String
-    // Relations to specific document types
     presentation Presentation?
+    favorites    FavoriteDocument[]
 
-    // Favorites
-    favorites FavoriteDocument[]
+    @@index([workspaceId])
 }
 
 model Presentation {
     id                String       @id @default(cuid())
-    content           Json // Presentation content including slides, theme, etc.
+    content           Json
     theme             String       @default("default")
-    imageModel        String? // The image model used for generating images
-    presentationStyle String? // The style of the presentation
-    language          String?      @default("en-US") // The language of the presentation
-    outline           String[] // Store the presentation outline
+    imageModel        String?
+    presentationStyle String?
+    language          String?      @default("en-US")
+    outline           String[]
     base              BaseDocument @relation(fields: [id], references: [id], onDelete: Cascade)
     templateId        String?
-    customThemeId     String? // Reference to custom theme if used
+    customThemeId     String?
     customTheme       CustomTheme? @relation(fields: [customThemeId], references: [id])
+    objective         String?
+    audience          String?
+    durationMinutes   Int?
+    narrativePlan     Json?
+    versions          PresentationVersion[]
+    comments          PresentationComment[]
+    citations         Citation[]
+    exportJobs        ExportJob[]
+}
+
+model PresentationVersion {
+    id             String       @id @default(cuid())
+    presentationId String
+    version        Int
+    snapshot       Json
+    summary        String?
+    createdById    String?
+    createdAt      DateTime     @default(now())
+    presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+
+    @@unique([presentationId, version])
+    @@index([presentationId, createdAt])
+}
+
+model PresentationComment {
+    id             String       @id @default(cuid())
+    presentationId String
+    authorId       String
+    slideId        String?
+    parentId       String?
+    body           String       @db.Text
+    resolvedAt     DateTime?
+    createdAt      DateTime     @default(now())
+    updatedAt      DateTime     @updatedAt
+    presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+    author         User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+    parent         PresentationComment? @relation("CommentThread", fields: [parentId], references: [id])
+    replies        PresentationComment[] @relation("CommentThread")
+
+    @@index([presentationId, slideId])
+}
+
+model SourceDocument {
+    id          String     @id @default(cuid())
+    workspaceId String
+    name        String
+    kind        SourceKind
+    uri         String?
+    mimeType    String?
+    contentHash String?
+    metadata    Json?
+    createdAt   DateTime   @default(now())
+    updatedAt   DateTime   @updatedAt
+    workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+    citations   Citation[]
+
+    @@index([workspaceId, createdAt])
+}
+
+model Citation {
+    id             String          @id @default(cuid())
+    presentationId String
+    sourceId       String
+    slideId        String?
+    claim          String?         @db.Text
+    locator        String?
+    url            String?
+    createdAt      DateTime        @default(now())
+    presentation   Presentation    @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+    source         SourceDocument  @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+    @@index([presentationId, slideId])
+}
+
+model BrandKit {
+    id          String    @id @default(cuid())
+    workspaceId String
+    name        String
+    logoUrl     String?
+    colors      Json
+    typography  Json
+    voice       Json?
+    rules       Json?
+    isDefault   Boolean   @default(false)
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+    workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+    @@index([workspaceId])
+}
+
+model PresentationTemplate {
+    id          String    @id @default(cuid())
+    workspaceId String
+    name        String
+    description String?
+    content     Json
+    category    String?
+    isPublic    Boolean   @default(false)
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+    workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+    @@index([workspaceId, category])
+}
+
+model ModelProviderConfig {
+    id           String       @id @default(cuid())
+    workspaceId  String
+    provider     String
+    kind         ProviderKind
+    model        String
+    enabled      Boolean      @default(true)
+    isDefault    Boolean      @default(false)
+    settings     Json?
+    secretRef    String?
+    createdAt    DateTime     @default(now())
+    updatedAt    DateTime     @updatedAt
+    workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+    @@index([workspaceId, kind])
+}
+
+model ApiCredential {
+    id          String    @id @default(cuid())
+    name        String
+    provider    String
+    encrypted   String
+    lastFour    String?
+    workspaceId String?
+    userId      String?
+    createdAt   DateTime  @default(now())
+    rotatedAt   DateTime?
+    workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+    user        User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([workspaceId])
+    @@index([userId])
+}
+
+model WebhookEndpoint {
+    id          String    @id @default(cuid())
+    workspaceId String
+    url         String
+    events      String[]
+    secretRef   String?
+    active      Boolean   @default(true)
+    createdAt   DateTime  @default(now())
+    workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+    @@index([workspaceId])
+}
+
+model ExportJob {
+    id             String       @id @default(cuid())
+    presentationId String
+    format         ExportFormat
+    status         ExportStatus @default(QUEUED)
+    outputUrl      String?
+    error          String?
+    options        Json?
+    createdAt      DateTime     @default(now())
+    updatedAt      DateTime     @updatedAt
+    presentation   Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+
+    @@index([presentationId, createdAt])
+}
+
+model UsageEvent {
+    id        String   @id @default(cuid())
+    userId    String
+    workspaceId String?
+    feature   String
+    provider  String?
+    model     String?
+    units     Int      @default(1)
+    costUsd   Decimal? @db.Decimal(12, 6)
+    metadata  Json?
+    createdAt DateTime @default(now())
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([userId, createdAt])
+    @@index([workspaceId, createdAt])
+}
+
+model AuditLog {
+    id          String    @id @default(cuid())
+    workspaceId String?
+    actorId     String?
+    action      String
+    targetType  String?
+    targetId    String?
+    metadata    Json?
+    ipHash      String?
+    createdAt   DateTime  @default(now())
+    workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+    actor       User?      @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+    @@index([workspaceId, createdAt])
+    @@index([actorId, createdAt])
 }
 
 model CustomTheme {
@@ -119,7 +411,7 @@ model CustomTheme {
     isPublic      Boolean        @default(false)
     createdAt     DateTime       @default(now())
     updatedAt     DateTime       @updatedAt
-    themeData     Json // Store the complete theme configuration
+    themeData     Json
     presentations Presentation[]
 
     @@index([userId])
