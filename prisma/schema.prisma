@@ -609,17 +609,22 @@ model TemplateVersion {
 }
 
 model TemplatePurchase {
-    id          String                 @id @default(cuid())
-    templateId  String
-    template    MarketplaceTemplate    @relation(fields: [templateId], references: [id], onDelete: Restrict)
-    buyerId     String
-    buyer       User                   @relation("TemplateBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
-    status      MarketplaceOrderStatus @default(PENDING)
-    amountCents Int
-    currency    String                 @default("USD")
-    license     TemplateLicense
-    providerRef String?
-    createdAt   DateTime               @default(now())
+    id                String                 @id @default(cuid())
+    templateId        String
+    template          MarketplaceTemplate    @relation(fields: [templateId], references: [id], onDelete: Restrict)
+    buyerId           String
+    buyer             User                   @relation("TemplateBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+    status            MarketplaceOrderStatus @default(PENDING)
+    amountCents       Int
+    currency          String                 @default("USD")
+    license           TemplateLicense
+    providerRef       String?                @unique
+    checkoutSessionId String?                @unique
+    paymentIntentId   String?                @unique
+    paidAt            DateTime?
+    refundedAt        DateTime?
+    createdAt         DateTime               @default(now())
+    updatedAt         DateTime               @updatedAt
 
     @@index([buyerId, createdAt])
     @@index([templateId, createdAt])
@@ -882,4 +887,88 @@ model BulkGenerationJob {
     updatedAt   DateTime       @updatedAt
 
     @@index([workspaceId, createdAt])
+}
+
+
+model MarketplaceWebhookEvent {
+    id          String   @id @default(cuid())
+    provider    String
+    eventId     String   @unique
+    eventType   String
+    payloadHash String?
+    processedAt DateTime @default(now())
+    metadata    Json?
+}
+
+model OAuthConnection {
+    id               String   @id @default(cuid())
+    userId           String
+    workspaceId      String?
+    provider         String
+    providerAccountId String?
+    scopes           String[]
+    encryptedTokens  String   @db.Text
+    expiresAt        DateTime?
+    refreshAfter     DateTime?
+    createdAt        DateTime @default(now())
+    updatedAt        DateTime @updatedAt
+
+    @@unique([userId, workspaceId, provider])
+    @@index([workspaceId, provider])
+    @@index([userId, provider])
+}
+
+model DataSyncRun {
+    id             String         @id @default(cuid())
+    connectionId   String
+    status         PipelineStatus @default(QUEUED)
+    startedAt      DateTime?
+    finishedAt     DateTime?
+    recordsRead    Int            @default(0)
+    recordsWritten Int            @default(0)
+    cursor         String?
+    result         Json?
+    error          String?
+    createdAt      DateTime       @default(now())
+
+    @@index([connectionId, createdAt])
+}
+
+model CollaborationDocument {
+    id          String   @id @default(cuid())
+    artifactId  String   @unique
+    stateVector Bytes?
+    updateBlob  Bytes?
+    version     Int      @default(0)
+    updatedAt   DateTime @updatedAt
+}
+
+model CollaborationSession {
+    id          String   @id @default(cuid())
+    artifactId  String
+    userId      String
+    clientId    String
+    lastSeenAt  DateTime @default(now())
+    metadata    Json?
+    createdAt   DateTime @default(now())
+
+    @@unique([artifactId, clientId])
+    @@index([artifactId, lastSeenAt])
+}
+
+model WorkflowRun {
+    id          String         @id @default(cuid())
+    workflowId  String
+    status      PipelineStatus @default(QUEUED)
+    triggerData Json?
+    nodeState   Json?
+    result      Json?
+    error       String?
+    startedAt   DateTime?
+    finishedAt  DateTime?
+    createdAt   DateTime       @default(now())
+    updatedAt   DateTime       @updatedAt
+
+    @@index([workflowId, createdAt])
+    @@index([status, createdAt])
 }
