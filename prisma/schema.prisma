@@ -640,3 +640,246 @@ model TemplateReview {
     @@unique([templateId, userId])
     @@index([templateId, createdAt])
 }
+
+
+enum PipelineStatus {
+    DRAFT
+    QUEUED
+    RUNNING
+    SUCCEEDED
+    PARTIAL
+    FAILED
+    CANCELLED
+}
+
+enum ApprovalStatus {
+    DRAFT
+    PENDING
+    APPROVED
+    CHANGES_REQUESTED
+    REJECTED
+}
+
+enum DataConnectionKind {
+    GOOGLE_SHEETS
+    EXCEL
+    CSV
+    SQL
+    REST_API
+    AIRTABLE
+    NOTION
+    POWER_BI
+    TABLEAU
+    SALESFORCE
+    HUBSPOT
+    CUSTOM
+}
+
+enum PublishVisibility {
+    PRIVATE
+    WORKSPACE
+    PASSWORD
+    PUBLIC
+}
+
+model SourceToManyJob {
+    id              String         @id @default(cuid())
+    workspaceId     String?
+    userId          String
+    sourceIds       String[]
+    requestedKinds  ArtifactKind[]
+    brandKitId      String?
+    objective       String?
+    audience        String?
+    status          PipelineStatus @default(DRAFT)
+    plan            Json?
+    resultManifest  Json?
+    error           String?
+    createdAt       DateTime       @default(now())
+    updatedAt       DateTime       @updatedAt
+
+    @@index([workspaceId, createdAt])
+    @@index([userId, createdAt])
+}
+
+model DataConnection {
+    id              String             @id @default(cuid())
+    workspaceId     String
+    name            String
+    kind            DataConnectionKind
+    configuration   Json
+    secretRef       String?
+    refreshSchedule String?
+    enabled         Boolean            @default(true)
+    lastSyncedAt    DateTime?
+    createdAt       DateTime           @default(now())
+    updatedAt       DateTime           @updatedAt
+
+    @@index([workspaceId, kind])
+}
+
+model AutomationWorkflow {
+    id          String    @id @default(cuid())
+    workspaceId String
+    name        String
+    description String?
+    trigger     Json
+    nodes       Json
+    edges       Json
+    enabled     Boolean   @default(false)
+    lastRunAt   DateTime?
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+
+    @@index([workspaceId, enabled])
+}
+
+model ApprovalWorkflow {
+    id          String    @id @default(cuid())
+    workspaceId String
+    name        String
+    steps       Json
+    rules       Json?
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+
+    @@index([workspaceId])
+}
+
+model ApprovalRequest {
+    id          String         @id @default(cuid())
+    workflowId  String
+    artifactId  String
+    requestedBy String
+    currentStep Int            @default(0)
+    status      ApprovalStatus @default(DRAFT)
+    decisions   Json?
+    createdAt   DateTime       @default(now())
+    updatedAt   DateTime       @updatedAt
+
+    @@index([workflowId, status])
+    @@index([artifactId])
+}
+
+model ContentComponent {
+    id          String    @id @default(cuid())
+    workspaceId String
+    name        String
+    category    String
+    content     Json
+    tokens      Json?
+    locked      Boolean   @default(false)
+    approved    Boolean   @default(false)
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+
+    @@index([workspaceId, category])
+}
+
+model KnowledgeEntry {
+    id          String    @id @default(cuid())
+    workspaceId String
+    title       String
+    content     String    @db.Text
+    sourceUrl   String?
+    metadata    Json?
+    approved    Boolean   @default(false)
+    validFrom   DateTime?
+    validUntil  DateTime?
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+
+    @@index([workspaceId, approved])
+}
+
+model BrandPolicy {
+    id          String    @id @default(cuid())
+    workspaceId String
+    name        String
+    rules       Json
+    severity    String    @default("warning")
+    enabled     Boolean   @default(true)
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+
+    @@index([workspaceId, enabled])
+}
+
+model ProvenanceRecord {
+    id          String    @id @default(cuid())
+    artifactId  String
+    elementId   String?
+    sourceIds   String[]
+    provider    String?
+    model       String?
+    promptHash  String?
+    metadata    Json?
+    createdAt   DateTime  @default(now())
+
+    @@index([artifactId, elementId])
+}
+
+model PublishedArtifact {
+    id            String            @id @default(cuid())
+    artifactId    String
+    workspaceId   String?
+    slug          String            @unique
+    visibility    PublishVisibility @default(PRIVATE)
+    passwordHash  String?
+    customDomain  String?
+    expiresAt     DateTime?
+    settings      Json?
+    publishedAt   DateTime          @default(now())
+    updatedAt     DateTime          @updatedAt
+
+    @@index([artifactId])
+    @@index([workspaceId, publishedAt])
+}
+
+model EngagementEvent {
+    id          String    @id @default(cuid())
+    publishedId String
+    sessionId   String?
+    event       String
+    elementId   String?
+    durationMs  Int?
+    metadata    Json?
+    createdAt   DateTime  @default(now())
+
+    @@index([publishedId, createdAt])
+    @@index([event, createdAt])
+}
+
+model ExperimentVariant {
+    id          String    @id @default(cuid())
+    workspaceId String
+    name        String
+    artifactId  String
+    experiment  String
+    variant     String
+    allocation  Int       @default(50)
+    metrics     Json?
+    active      Boolean   @default(true)
+    createdAt   DateTime  @default(now())
+
+    @@index([workspaceId, experiment])
+}
+
+model BulkGenerationJob {
+    id          String         @id @default(cuid())
+    workspaceId String
+    userId      String
+    templateId  String?
+    inputSource Json
+    mapping     Json
+    outputKind  ArtifactKind
+    status      PipelineStatus @default(QUEUED)
+    totalRows   Int            @default(0)
+    completed   Int            @default(0)
+    failed      Int            @default(0)
+    manifest    Json?
+    createdAt   DateTime       @default(now())
+    updatedAt   DateTime       @updatedAt
+
+    @@index([workspaceId, createdAt])
+}
