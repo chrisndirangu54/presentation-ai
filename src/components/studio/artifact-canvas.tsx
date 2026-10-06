@@ -39,6 +39,8 @@ export interface ArtifactBlock {
   text?: string;
   data?: unknown;
   imageUrl?: string;
+  focalPoint?: { x: number; y: number };
+  chartType?: string;
 }
 
 const blockTypes: ArtifactBlock["type"][] = [
@@ -86,7 +88,14 @@ function graphFromBlocks(blocks: ArtifactBlock[]): SemanticGraph {
       label: block.text?.slice(0, 80) ?? block.type,
       text: block.text,
       value: block.data,
-      metadata: block.imageUrl ? { imageUrl: block.imageUrl } : undefined,
+      metadata:
+        block.imageUrl || block.focalPoint || block.chartType
+          ? {
+              imageUrl: block.imageUrl,
+              focalPoint: block.focalPoint,
+              chartType: block.chartType,
+            }
+          : undefined,
     })),
     edges: [],
   };
@@ -303,6 +312,8 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
                 : type === "table"
                   ? "Table"
                   : "New editable block",
+        chartType: type === "chart" ? "bar" : undefined,
+        focalPoint: type === "image" ? { x: 0.5, y: 0.5 } : undefined,
         data:
           type === "chart"
             ? { type: "bar", rows: [] }
@@ -576,6 +587,76 @@ function SortableBlock({
           className="min-h-20 w-full resize-y rounded-md border bg-background p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
           placeholder="Editable content"
         />
+
+        {block.type === "image" && (
+          <div className="grid grid-cols-2 gap-2">
+            <label className="space-y-1 text-xs text-muted-foreground">
+              Focal X
+              <input
+                type="number"
+                min="0"
+                max="1"
+                step="0.05"
+                value={block.focalPoint?.x ?? 0.5}
+                onChange={(event) =>
+                  onChange({
+                    ...block,
+                    focalPoint: {
+                      x: Number(event.target.value),
+                      y: block.focalPoint?.y ?? 0.5,
+                    },
+                  })
+                }
+                className="w-full rounded-md border bg-background px-2 py-1 text-sm"
+              />
+            </label>
+            <label className="space-y-1 text-xs text-muted-foreground">
+              Focal Y
+              <input
+                type="number"
+                min="0"
+                max="1"
+                step="0.05"
+                value={block.focalPoint?.y ?? 0.5}
+                onChange={(event) =>
+                  onChange({
+                    ...block,
+                    focalPoint: {
+                      x: block.focalPoint?.x ?? 0.5,
+                      y: Number(event.target.value),
+                    },
+                  })
+                }
+                className="w-full rounded-md border bg-background px-2 py-1 text-sm"
+              />
+            </label>
+          </div>
+        )}
+
+        {block.type === "chart" && (
+          <select
+            value={block.chartType ?? "bar"}
+            onChange={(event) =>
+              onChange({
+                ...block,
+                chartType: event.target.value,
+                data:
+                  block.data && typeof block.data === "object"
+                    ? { ...(block.data as Record<string, unknown>), type: event.target.value }
+                    : { type: event.target.value, rows: [] },
+              })
+            }
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+            aria-label="Chart type"
+          >
+            <option value="bar">Bar</option>
+            <option value="line">Line</option>
+            <option value="pie">Pie</option>
+            <option value="donut">Donut</option>
+            <option value="scatter">Scatter</option>
+            <option value="area">Area</option>
+          </select>
+        )}
 
         {(block.type === "chart" || block.type === "table") && (
           <textarea
