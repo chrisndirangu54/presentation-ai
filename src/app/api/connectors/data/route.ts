@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { auth } from "@/server/auth";
 import { db } from "@/server/db";
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
       workspaceId: body.workspaceId,
       name: body.name,
       kind: body.kind,
-      configuration: body.configuration,
+      configuration: body.configuration as Prisma.InputJsonValue,
       secretRef: body.oauthConnectionId,
     },
   });
