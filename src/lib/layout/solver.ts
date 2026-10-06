@@ -10,6 +10,11 @@ import {
 import { auditAdaptiveLayout } from "./quality";
 import { detectVisualGroups } from "./grouping";
 import { fitTypography } from "./typography";
+import {
+  defaultLayoutWeights,
+  scoreWithLearnedWeights,
+  type LayoutFeatureWeights,
+} from "./learning";
 
 export interface LayoutScoreBreakdown {
   relationship: number;
@@ -33,6 +38,7 @@ export interface ConstraintSolverOptions {
   candidates?: number;
   iterations?: number;
   brandTokens?: BrandTokens;
+  learnedWeights?: LayoutFeatureWeights;
 }
 
 type Pair = [string, string];
@@ -237,6 +243,7 @@ function chartScore(graph: SemanticGraph, layout: AdaptiveLayoutResult) {
 export function scoreLayout(
   graph: SemanticGraph,
   layout: AdaptiveLayoutResult,
+  learnedWeights: LayoutFeatureWeights = defaultLayoutWeights,
 ): LayoutScoreBreakdown {
   const quality = auditAdaptiveLayout(layout);
   const penalties = quality.reduce(
@@ -255,15 +262,17 @@ export function scoreLayout(
   const typography = typographyScore(graph, layout);
   const imagery = imageScore(graph, layout);
   const charts = chartScore(graph, layout);
-  const total = Math.max(
-    0,
-    relationship * 0.2 +
-      whitespace * 0.18 +
-      balance * 0.18 +
-      typography * 0.16 +
-      imagery * 0.12 +
-      charts * 0.16 -
+  const total = scoreWithLearnedWeights(
+    {
+      relationship,
+      whitespace,
+      balance,
+      typography,
+      imagery,
+      charts,
       penalties,
+    },
+    learnedWeights,
   );
 
   return {
@@ -405,7 +414,7 @@ export function solveLayoutConstraints(
       .map((layout, index) => ({
         id: `candidate-${iteration}-${index}`,
         layout,
-        score: scoreLayout(graph, layout),
+        score: scoreLayout(graph, layout, options.learnedWeights),
       }))
       .sort((a, b) => b.score.total - a.score.total)
       .slice(0, candidateCount)
@@ -416,7 +425,7 @@ export function solveLayoutConstraints(
     .map((layout, index) => ({
       id: `candidate-${index + 1}`,
       layout,
-      score: scoreLayout(graph, layout),
+      score: scoreLayout(graph, layout, options.learnedWeights),
     }))
     .sort((a, b) => b.score.total - a.score.total)
     .map((candidate, index) => ({ ...candidate, rank: index + 1 }));
