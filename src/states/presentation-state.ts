@@ -22,6 +22,7 @@ interface PresentationState {
   isPresenting: boolean;
   currentSlideIndex: number;
   isThemeCreatorOpen: boolean;
+  imageGenerationModelOpen: boolean;
 
   // Generation states
   shouldStartOutlineGeneration: boolean;
@@ -57,6 +58,7 @@ interface PresentationState {
   previousSlide: () => void;
 
   setIsThemeCreatorOpen: (update: boolean) => void;
+  setImageGenerationModelOpen: (open: boolean) => void;
   // Generation actions
   setShouldStartOutlineGeneration: (shouldStart: boolean) => void;
   setShouldStartPresentationGeneration: (shouldStart: boolean) => void;
@@ -97,6 +99,7 @@ export const usePresentationState = create<PresentationState>((set) => ({
   isPresenting: false,
   currentSlideIndex: 0,
   isThemeCreatorOpen: false,
+  imageGenerationModelOpen: false,
 
   // Generation states
   shouldStartOutlineGeneration: false,
@@ -170,6 +173,7 @@ export const usePresentationState = create<PresentationState>((set) => ({
     }),
 
   setIsThemeCreatorOpen: (update) => set({ isThemeCreatorOpen: update }),
+  setImageGenerationModelOpen: (open) => set({ imageGenerationModelOpen: open }),
   // Selection state
   isSelecting: false,
   selectedPresentations: [],

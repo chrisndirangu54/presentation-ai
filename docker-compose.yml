@@ -1,0 +1,39 @@
+services:
+  web:
+    build: .
+    command: npm start
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NEXT_PUBLIC_COLLABORATION_URL: ${NEXT_PUBLIC_COLLABORATION_URL:-ws://localhost:1234}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+
+  collaboration:
+    build: .
+    command: npm run collab
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      COLLABORATION_PORT: 1234
+    ports:
+      - "1234:1234"
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: presentation_ai
+      POSTGRES_USER: presentation_ai
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  postgres-data:

@@ -25,11 +25,13 @@ import {
 } from "@/app/_actions/presentation/presentationActions";
 import { type PlateNode, type PlateSlide } from "../utils/parser";
 import { type ImageModelList } from "@/app/_actions/image/generate";
+import { usePresentationCollaboration } from "@/hooks/presentation/usePresentationCollaboration";
 
 export default function PresentationPage() {
   const params = useParams();
   const id = params.id as string;
   const { resolvedTheme } = useTheme();
+  const { status: collaborationStatus } = usePresentationCollaboration(id);
   const [shouldFetchData, setSetShouldFetchData] = useState(true);
   const {
     setCurrentPresentation,
@@ -237,6 +239,11 @@ export default function PresentationPage() {
       themeData={currentThemeData ?? undefined}
     >
       <div className="mx-auto max-w-[90%] space-y-8 p-8 pt-16">
+        <div className="flex justify-end">
+          <span className="rounded-full border bg-background/80 px-2.5 py-1 text-xs text-muted-foreground">
+            Collaboration: {collaborationStatus}
+          </span>
+        </div>
         <div className="space-y-8">
           <PresentationSlidesView
             handleSlideChange={handleSlideChange}
