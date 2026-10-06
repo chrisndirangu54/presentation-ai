@@ -913,7 +913,7 @@ model OAuthConnection {
     createdAt        DateTime @default(now())
     updatedAt        DateTime @updatedAt
 
-    @@unique([userId, workspaceId, provider])
+    @@index([userId, workspaceId, provider])
     @@index([workspaceId, provider])
     @@index([userId, provider])
 }
