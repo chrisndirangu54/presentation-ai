@@ -20,6 +20,11 @@ export const platformCapabilities = {
     "data-story recommendations",
     "artifact quality scoring",
     "governance-aware generation",
+    "universal semantic content graph",
+    "cross-artifact consistency checking",
+    "semantic workspace search",
+    "linked fact and metric propagation",
+    "source freshness and lineage",
   ],
   visuals: [
     "advanced charts and statistical graphics",
@@ -46,6 +51,9 @@ export const platformCapabilities = {
     "scheduled data refresh",
     "live chart binding",
     "AI data analysis",
+    "governed metric definitions",
+    "authoritative KPI snapshots",
+    "data lineage and freshness status",
   ],
   automation: [
     "trigger-to-output workflow graphs",
@@ -65,6 +73,8 @@ export const platformCapabilities = {
     "versioned template packages",
     "reviews ratings and licensing",
     "creator analytics and payouts foundation",
+    "template remixing",
+    "template and asset fingerprinting",
   ],
   enterprise: [
     "SSO and policy integration foundation",
@@ -75,6 +85,9 @@ export const platformCapabilities = {
     "cost and model governance",
     "audit and provenance records",
     "private organizational knowledge",
+    "pre-publish quality gates",
+    "document classification and watermark policy",
+    "controlled publish overrides",
   ],
   publishing: [
     "public and private web publishing",
