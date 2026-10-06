@@ -74,6 +74,9 @@ export function LinkFloatingToolbar({ state }: LinkFloatingToolbarProps) {
 
   if (hidden) return null;
 
+  const { style: insertStyle, ...insertRest } = insertProps;
+  const { style: editStyle, ...editRest } = editProps;
+
   const input = (
     <div className="flex w-[330px] flex-col" {...inputProps}>
       <div className="flex items-center">
@@ -145,7 +148,8 @@ export function LinkFloatingToolbar({ state }: LinkFloatingToolbarProps) {
       <div
         ref={insertRef}
         className={cn(popoverVariants(), 'w-auto p-1')}
-        {...insertProps}
+        {...(insertRest as React.HTMLAttributes<HTMLDivElement>)}
+        style={insertStyle as React.CSSProperties}
       >
         {input}
       </div>
@@ -153,7 +157,8 @@ export function LinkFloatingToolbar({ state }: LinkFloatingToolbarProps) {
       <div
         ref={editRef}
         className={cn(popoverVariants(), 'w-auto p-1')}
-        {...editProps}
+        {...(editRest as React.HTMLAttributes<HTMLDivElement>)}
+        style={editStyle as React.CSSProperties}
       >
         {editContent}
       </div>
