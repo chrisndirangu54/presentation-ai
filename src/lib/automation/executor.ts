@@ -148,6 +148,28 @@ export async function executeWorkflow(
                 "Publish nodes require config.artifactId and config.slug",
               );
             }
+
+            const latestGate = await db.qualityGateRun.findFirst({
+              where: { artifactId },
+              orderBy: { createdAt: "desc" },
+            });
+            const override = latestGate
+              ? await db.publishGateOverride.findFirst({
+                  where: {
+                    artifactId,
+                    gateRunId: latestGate.id,
+                    OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+                  },
+                  orderBy: { createdAt: "desc" },
+                })
+              : null;
+
+            if (latestGate?.status === "BLOCK" && !override) {
+              throw new Error(
+                "Publishing blocked by the latest quality gate. Resolve critical findings or create an authorized override.",
+              );
+            }
+
             output = await db.publishedArtifact.upsert({
               where: { slug },
               create: {
