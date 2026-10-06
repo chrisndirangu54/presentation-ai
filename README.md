@@ -281,3 +281,28 @@ The engine uses per-target dimensions, margins, column grids, gaps, density budg
 The editor now exposes adaptive target selection and a live visual preview. Generated layouts can be persisted on the artifact, while `LayoutSnapshot` records preserve historical target-specific outputs and source hashes. `AdaptiveLayoutProfile` stores reusable workspace layout constraints and brand tokens.
 
 Quality auditing checks generated layouts for safe-area breaches, overlap, density and text overflow before export or publication.
+
+
+## Advanced layout constraint solver
+
+Adaptive rendering now includes a multi-candidate solver rather than relying only on one deterministic packing pass.
+
+The solver starts from the deterministic layout, produces multiple bounded mutations, scores them, keeps the strongest candidates, and iterates. The existing `POST /api/layout/adapt` response remains backward compatible through the top-level `layout`, while also returning a ranked `solver.candidates` collection.
+
+Candidate scoring combines:
+
+- semantic relationship proximity and detected visual groups
+- whitespace utilization against the target density budget
+- center-of-mass visual balance
+- typography fit and estimated overflow
+- focal-point-aware image crop quality
+- chart aspect ratio suitability
+- penalties from overlap, safe-area, density and overflow findings
+
+Image blocks can carry normalized `focalPoint { x, y }` metadata. Candidate layouts preserve that focal point in crop/object-position directives rather than blindly center-cropping.
+
+Chart blocks can carry `chartType` metadata. The solver adjusts chart height toward a preferred aspect ratio: near-square for pie/donut, wider for line charts, and moderately wide for bar/other charts.
+
+Relationship-aware grouping uses semantic edges such as `supports`, `visualizes`, `contains`, `references` and `reuses` so connected content is rewarded for remaining visually close or on the same page.
+
+The collaborative artifact canvas shows the top-ranked candidates with their numeric scores, allowing a user to select an alternate before saving the adaptive layout.
