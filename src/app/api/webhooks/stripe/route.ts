@@ -1,3 +1,4 @@
+import Stripe from "stripe";
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { db } from "@/server/db";
@@ -11,7 +12,7 @@ export async function POST(request: Request) {
   const signature = request.headers.get("stripe-signature");
   if (!signature) return NextResponse.json({ error: "Missing signature" }, { status: 400 });
 
-  let event;
+  let event: Stripe.Event;
   try {
     event = stripe().webhooks.constructEvent(body, signature, secret);
   } catch {
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
     });
 
     if (event.type === "checkout.session.completed") {
-      const checkout = event.data.object;
+      const checkout = event.data.object as Stripe.Checkout.Session;
       const purchaseId = checkout.metadata?.purchaseId;
       if (purchaseId) {
         const purchase = await tx.templatePurchase.findUnique({ where: { id: purchaseId } });
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
     }
 
     if (event.type === "charge.refunded") {
-      const charge = event.data.object;
+      const charge = event.data.object as Stripe.Charge;
       const paymentIntentId =
         typeof charge.payment_intent === "string" ? charge.payment_intent : undefined;
       if (paymentIntentId) {
