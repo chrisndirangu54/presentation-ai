@@ -25,6 +25,11 @@ export const platformCapabilities = {
     "semantic workspace search",
     "linked fact and metric propagation",
     "source freshness and lineage",
+    "learned layout preference profiles",
+    "user workspace industry audience and target-specific layout learning",
+    "candidate selection and correction feedback",
+    "viewer-performance-informed layout reranking",
+    "auditable online preference updates",
   ],
   visuals: [
     "advanced charts and statistical graphics",

@@ -1246,3 +1246,97 @@ model LayoutSnapshot {
 
     @@index([artifactId, target, createdAt])
 }
+
+
+enum LayoutFeedbackType {
+    CANDIDATE_SELECTED
+    CANDIDATE_REJECTED
+    POST_LAYOUT_EDIT
+    PUBLISHED
+    VIEWER_PERFORMANCE
+}
+
+enum LayoutPreferenceScope {
+    GLOBAL
+    USER
+    WORKSPACE
+    INDUSTRY
+    AUDIENCE
+    TARGET
+}
+
+model LayoutFeedbackEvent {
+    id            String             @id @default(cuid())
+    userId        String?
+    workspaceId   String?
+    artifactId    String?
+    candidateId   String?
+    target        String?
+    industry      String?
+    audience      String?
+    feedbackType  LayoutFeedbackType
+    scoreFeatures Json
+    context       Json?
+    editDelta     Json?
+    reward        Float?
+    createdAt     DateTime           @default(now())
+
+    @@index([userId, createdAt])
+    @@index([workspaceId, createdAt])
+    @@index([artifactId, createdAt])
+    @@index([target, feedbackType])
+}
+
+model LayoutPreferenceProfile {
+    id          String                @id @default(cuid())
+    scope       LayoutPreferenceScope
+    scopeKey    String
+    target      String?
+    weights     Json
+    samples     Int                   @default(0)
+    confidence  Float                 @default(0)
+    lastLearnedAt DateTime?
+    createdAt   DateTime              @default(now())
+    updatedAt   DateTime              @updatedAt
+
+    @@unique([scope, scopeKey, target])
+    @@index([scope, scopeKey])
+}
+
+model LayoutPerformanceAggregate {
+    id             String    @id @default(cuid())
+    publishedId    String?
+    workspaceId    String?
+    artifactId     String?
+    candidateId    String?
+    target         String?
+    audience       String?
+    views          Int       @default(0)
+    completions    Int       @default(0)
+    totalDurationMs BigInt   @default(0)
+    interactions   Int       @default(0)
+    conversions    Int       @default(0)
+    performanceScore Float   @default(0)
+    updatedAt      DateTime  @updatedAt
+    createdAt      DateTime  @default(now())
+
+    @@index([workspaceId, target])
+    @@index([artifactId, candidateId])
+    @@index([publishedId, candidateId])
+}
+
+model LayoutLearningRun {
+    id          String    @id @default(cuid())
+    workspaceId String?
+    scope       String
+    scopeKey    String
+    target      String?
+    sampleCount Int
+    oldWeights  Json?
+    newWeights  Json
+    metrics     Json?
+    createdAt   DateTime  @default(now())
+
+    @@index([workspaceId, createdAt])
+    @@index([scope, scopeKey])
+}
