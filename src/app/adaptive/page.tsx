@@ -36,6 +36,9 @@ export default async function AdaptiveLayoutPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Link className="rounded-md border px-4 py-2 text-sm font-medium" href="/layout-learning">
+            Learned preferences
+          </Link>
           <Link className="rounded-md border px-4 py-2 text-sm font-medium" href="/semantic">
             Semantic Canvas
           </Link>
