@@ -67,8 +67,13 @@ enum ExportFormat {
     PDF
     GOOGLE_SLIDES
     DOCX
+    XLSX
+    CSV
     PNG
+    JPG
     SVG
+    HTML
+    MARKDOWN
     JSON
 }
 
@@ -86,6 +91,56 @@ enum ProviderKind {
     EMBEDDING
     SPEECH
     SEARCH
+}
+
+enum ArtifactKind {
+    PRESENTATION
+    DOCUMENT
+    SPREADSHEET
+    INFOGRAPHIC
+    CHART
+    FLOWCHART
+    DIAGRAM
+    MIND_MAP
+    TIMELINE
+    DASHBOARD
+    POSTER
+    SOCIAL_CAROUSEL
+    ONE_PAGER
+    WHITEPAPER
+}
+
+enum TemplateStatus {
+    DRAFT
+    PENDING_REVIEW
+    PUBLISHED
+    REJECTED
+    ARCHIVED
+}
+
+enum TemplateLicense {
+    PERSONAL
+    COMMERCIAL
+    EXTENDED
+    TEAM
+    ENTERPRISE
+}
+
+enum MarketplaceOrderStatus {
+    PENDING
+    PAID
+    REFUNDED
+    CANCELLED
+}
+
+enum VisualSpecKind {
+    CHART
+    FLOWCHART
+    DIAGRAM
+    MIND_MAP
+    TIMELINE
+    MAP
+    INFOGRAPHIC
 }
 
 model User {
@@ -117,6 +172,10 @@ model User {
     usageEvents      UsageEvent[]
     auditLogs        AuditLog[]            @relation("AuditActor")
     apiKeys          ApiCredential[]
+    creatorProfile   CreatorProfile?
+    marketplaceTemplates MarketplaceTemplate[] @relation("TemplateCreator")
+    templatePurchases TemplatePurchase[] @relation("TemplateBuyer")
+    templateReviews   TemplateReview[]
 }
 
 model Workspace {
@@ -138,6 +197,8 @@ model Workspace {
     auditLogs      AuditLog[]
     apiKeys        ApiCredential[]
     sources        SourceDocument[]
+    artifacts      Artifact[]
+    marketplaceTemplates MarketplaceTemplate[]
 
     @@index([ownerId])
 }
@@ -166,6 +227,15 @@ enum DocumentType {
     RESEARCH_PAPER
     FLIPBOOK
     PRESENTATION
+    INFOGRAPHIC
+    SPREADSHEET
+    FLOWCHART
+    DIAGRAM
+    DASHBOARD
+    POSTER
+    SOCIAL_CAROUSEL
+    ONE_PAGER
+    WHITEPAPER
 }
 
 model BaseDocument {
@@ -182,6 +252,7 @@ model BaseDocument {
     isPublic     Boolean       @default(false)
     documentType String
     presentation Presentation?
+    artifact     Artifact?
     favorites    FavoriteDocument[]
 
     @@index([workspaceId])
@@ -433,4 +504,139 @@ model GeneratedImage {
     userId    String
     user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
     prompt    String
+}
+
+
+model Artifact {
+    id          String       @id @default(cuid())
+    baseId      String       @unique
+    base        BaseDocument @relation(fields: [baseId], references: [id], onDelete: Cascade)
+    workspaceId String?
+    workspace   Workspace?   @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+    kind        ArtifactKind
+    content     Json
+    layout      Json?
+    style       Json?
+    data        Json?
+    metadata    Json?
+    createdAt   DateTime     @default(now())
+    updatedAt   DateTime     @updatedAt
+    visualSpecs VisualSpec[]
+
+    @@index([workspaceId, kind])
+}
+
+model VisualSpec {
+    id         String         @id @default(cuid())
+    artifactId String
+    artifact   Artifact       @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+    kind       VisualSpecKind
+    title      String?
+    spec       Json
+    data       Json?
+    altText    String?
+    createdAt  DateTime       @default(now())
+    updatedAt  DateTime       @updatedAt
+
+    @@index([artifactId, kind])
+}
+
+model CreatorProfile {
+    id             String    @id @default(cuid())
+    userId         String    @unique
+    user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    displayName    String
+    bio            String?   @db.Text
+    avatarUrl      String?
+    website        String?
+    verified       Boolean   @default(false)
+    rating         Float     @default(0)
+    totalSales     Int       @default(0)
+    totalDownloads Int       @default(0)
+    payoutProvider String?
+    payoutRef      String?
+    createdAt      DateTime  @default(now())
+    updatedAt      DateTime  @updatedAt
+}
+
+model MarketplaceTemplate {
+    id             String          @id @default(cuid())
+    creatorId      String
+    creator        User            @relation("TemplateCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+    workspaceId    String?
+    workspace      Workspace?      @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+    name           String
+    slug           String          @unique
+    description    String?         @db.Text
+    kind           ArtifactKind
+    category       String
+    tags           String[]
+    status         TemplateStatus  @default(DRAFT)
+    isFree         Boolean         @default(true)
+    priceCents     Int             @default(0)
+    currency       String          @default("USD")
+    license        TemplateLicense @default(PERSONAL)
+    previewUrl     String?
+    thumbnailUrl   String?
+    source         Json
+    manifest       Json
+    featured       Boolean         @default(false)
+    salesCount     Int             @default(0)
+    downloadCount  Int             @default(0)
+    averageRating  Float           @default(0)
+    createdAt      DateTime        @default(now())
+    updatedAt      DateTime        @updatedAt
+    versions       TemplateVersion[]
+    purchases      TemplatePurchase[]
+    reviews        TemplateReview[]
+
+    @@index([creatorId, status])
+    @@index([workspaceId, status])
+    @@index([kind, category, status])
+}
+
+model TemplateVersion {
+    id          String              @id @default(cuid())
+    templateId  String
+    template    MarketplaceTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+    version     Int
+    source      Json
+    manifest    Json
+    releaseNotes String?
+    createdAt   DateTime            @default(now())
+
+    @@unique([templateId, version])
+}
+
+model TemplatePurchase {
+    id          String                 @id @default(cuid())
+    templateId  String
+    template    MarketplaceTemplate    @relation(fields: [templateId], references: [id], onDelete: Restrict)
+    buyerId     String
+    buyer       User                   @relation("TemplateBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+    status      MarketplaceOrderStatus @default(PENDING)
+    amountCents Int
+    currency    String                 @default("USD")
+    license     TemplateLicense
+    providerRef String?
+    createdAt   DateTime               @default(now())
+
+    @@index([buyerId, createdAt])
+    @@index([templateId, createdAt])
+}
+
+model TemplateReview {
+    id         String              @id @default(cuid())
+    templateId String
+    template   MarketplaceTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+    userId     String
+    user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+    rating     Int
+    title      String?
+    body       String?             @db.Text
+    createdAt  DateTime            @default(now())
+    updatedAt  DateTime            @updatedAt
+
+    @@unique([templateId, userId])
+    @@index([templateId, createdAt])
 }
