@@ -19,16 +19,28 @@ export default async function WorkspacePage() {
             Create, research, design and deliver
           </h1>
           <p className="mt-2 max-w-2xl text-muted-foreground">
-            Build research-grounded decks with model routing, collaboration,
-            brand controls and multi-format export.
+            Create research-grounded presentations, documents, spreadsheets, infographics,
+            diagrams and visual reports with model routing, collaboration, brand controls and multi-format export.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+            href="/studio"
+          >
+            Open Studio
+          </Link>
+          <Link
+            className="rounded-md border px-4 py-2 text-sm font-medium"
             href="/presentation"
           >
-            Open presentations
+            Presentations
+          </Link>
+          <Link
+            className="rounded-md border px-4 py-2 text-sm font-medium"
+            href="/marketplace"
+          >
+            Templates
           </Link>
           {session.user.isAdmin && (
             <Link
