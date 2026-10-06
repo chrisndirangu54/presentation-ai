@@ -252,3 +252,32 @@ Semantic nodes represent facts, claims, metrics, text, visuals, sources, people,
 ### Brand and template intelligence
 
 `POST /api/brand/extract` derives palette, font and logo candidates from supplied HTML/CSS/brand text. `POST /api/templates/remix` combines layout, typography and visual systems declaratively. Fingerprinting utilities support marketplace originality and asset-similarity workflows without allowing executable template code.
+
+
+## Adaptive layout and rendering
+
+The `/adaptive` workspace defines the responsive layout system shared by semantic content.
+
+Supported targets include:
+
+- 16:9 presentation
+- 4:3 presentation
+- A4 portrait
+- A4 landscape
+- desktop dashboard
+- mobile
+- long-form infographic
+- A3 poster
+- social square
+- social portrait
+- social story
+
+`POST /api/layout/adapt` takes a semantic graph plus a target format and returns a deterministic positioned layout, layout-quality findings, and responsive content decisions.
+
+`POST /api/layout/adapt-many` produces several target variants from the same semantic graph in one request.
+
+The engine uses per-target dimensions, margins, column grids, gaps, density budgets, text limits and content priorities. Metrics, charts, diagrams, images, tables and section anchors are ranked ahead of low-priority supporting copy. Compact formats can recommend compression or splitting instead of simply shrinking content.
+
+The editor now exposes adaptive target selection and a live visual preview. Generated layouts can be persisted on the artifact, while `LayoutSnapshot` records preserve historical target-specific outputs and source hashes. `AdaptiveLayoutProfile` stores reusable workspace layout constraints and brand tokens.
+
+Quality auditing checks generated layouts for safe-area breaches, overlap, density and text overflow before export or publication.
