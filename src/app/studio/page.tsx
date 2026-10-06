@@ -27,6 +27,7 @@ export default async function StudioPage() {
           </div>
           <div className="flex gap-3 text-sm">
             <Link className="underline underline-offset-4" href="/intelligence">Creative intelligence</Link>
+            <Link className="underline underline-offset-4" href="/semantic">Semantic canvas</Link>
             <Link className="underline underline-offset-4" href="/marketplace">Browse marketplace</Link>
           </div>
         </div>
