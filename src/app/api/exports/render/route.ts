@@ -57,7 +57,12 @@ export async function POST(request: Request) {
   const rendered = await renderBinary(body.target, normalized);
   const fileName = `${safeFilename(base.title)}.${rendered.extension}`;
 
-  return new Response(new Blob([rendered.bytes]), {
+  const bodyBuffer = rendered.bytes.buffer.slice(
+    rendered.bytes.byteOffset,
+    rendered.bytes.byteOffset + rendered.bytes.byteLength,
+  ) as ArrayBuffer;
+
+  return new Response(bodyBuffer, {
     status: 200,
     headers: {
       "content-type": rendered.contentType,
