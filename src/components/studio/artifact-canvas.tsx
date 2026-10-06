@@ -32,6 +32,9 @@ import type {
   LayoutTarget,
 } from "@/lib/layout/engine";
 import type { SemanticGraph, SemanticNodeKind } from "@/lib/semantic/graph";
+import type { LayoutScoreFeatures } from "@/lib/layout/learning";
+
+type CandidateScore = LayoutScoreFeatures & { total: number };
 
 export interface ArtifactBlock {
   id: string;
@@ -116,8 +119,13 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
   >("idle");
   const [layoutScore, setLayoutScore] = useState<number | null>(null);
   const [layoutCandidates, setLayoutCandidates] = useState<
-    Array<{ id: string; rank?: number; score: { total: number }; layout: AdaptiveLayoutResult }>
+    Array<{ id: string; rank?: number; score: CandidateScore; layout: AdaptiveLayoutResult }>
   >([]);
+  const [workspaceId, setWorkspaceId] = useState<string | undefined>(undefined);
+  const [selectedCandidate, setSelectedCandidate] = useState<
+    { id: string; score: CandidateScore } | undefined
+  >(undefined);
+  const layoutBaselineRef = useRef<ArtifactBlock[] | null>(null);
 
   const roomRef = useRef<Y.Map<string> | null>(null);
   const remoteJsonRef = useRef<string | null>(null);
@@ -133,12 +141,14 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
           artifact: {
             content: unknown;
             layout?: unknown;
+            workspaceId?: string | null;
           };
         };
         const content = (payload.artifact.content ?? {}) as {
           blocks?: ArtifactBlock[];
         };
         setBlocks(Array.isArray(content.blocks) ? content.blocks : []);
+        setWorkspaceId(payload.artifact.workspaceId ?? undefined);
 
         const savedLayout = payload.artifact.layout as
           | { adaptive?: AdaptiveLayoutResult }
@@ -246,6 +256,41 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
     setStatus("Unsaved");
   };
 
+  const computeEditMagnitude = (
+    before: ArtifactBlock[],
+    after: ArtifactBlock[],
+  ) => {
+    const previous = new Map(before.map((block) => [block.id, JSON.stringify(block)]));
+    let changes = Math.abs(before.length - after.length);
+    for (const block of after) {
+      if (previous.get(block.id) !== JSON.stringify(block)) changes++;
+    }
+    return Math.min(1, changes / Math.max(1, Math.max(before.length, after.length)));
+  };
+
+  const sendLayoutFeedback = async (input: {
+    kind: "candidate-selected" | "candidate-rejected" | "post-layout-edit";
+    candidateId?: string;
+    scoreFeatures: CandidateScore;
+    editMagnitude?: number;
+    editDelta?: unknown;
+  }) => {
+    await fetch("/api/layout/feedback", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        workspaceId,
+        artifactId,
+        candidateId: input.candidateId,
+        target: layoutTarget,
+        kind: input.kind,
+        scoreFeatures: input.scoreFeatures,
+        editMagnitude: input.editMagnitude,
+        editDelta: input.editDelta,
+      }),
+    });
+  };
+
   const save = async () => {
     setStatus("Saving");
     const response = await fetch(`/api/artifacts/${artifactId}`, {
@@ -259,6 +304,27 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
     setStatus(
       response.ok ? "Saved" : response.status === 403 ? "Read only" : "Error",
     );
+
+    if (
+      response.ok &&
+      selectedCandidate &&
+      layoutBaselineRef.current
+    ) {
+      const editMagnitude = computeEditMagnitude(
+        layoutBaselineRef.current,
+        blocks,
+      );
+      if (editMagnitude > 0) {
+        void sendLayoutFeedback({
+          kind: "post-layout-edit",
+          candidateId: selectedCandidate.id,
+          scoreFeatures: selectedCandidate.score,
+          editMagnitude,
+          editDelta: { changedFraction: editMagnitude },
+        });
+      }
+      layoutBaselineRef.current = blocks.map((block) => ({ ...block }));
+    }
   };
 
   const generateLayout = async () => {
@@ -269,6 +335,7 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
       body: JSON.stringify({
         graph: graphFromBlocks(blocks),
         target: layoutTarget,
+        workspaceId,
       }),
     });
 
@@ -284,7 +351,7 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
         candidates?: Array<{
           id: string;
           rank?: number;
-          score: { total: number };
+          score: CandidateScore;
           layout: AdaptiveLayoutResult;
         }>;
       };
@@ -292,6 +359,8 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
     setAdaptiveLayout(payload.layout);
     setLayoutScore(payload.solver?.bestScore?.total ?? null);
     setLayoutCandidates(payload.solver?.candidates ?? []);
+    setSelectedCandidate(undefined);
+    layoutBaselineRef.current = blocks.map((block) => ({ ...block }));
     setLayoutStatus("ready");
     setStatus("Unsaved");
   };
@@ -381,8 +450,28 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
           blockMap={blockMap}
           candidates={layoutCandidates}
           onSelectCandidate={(candidate) => {
+            if (
+              selectedCandidate &&
+              selectedCandidate.id !== candidate.id
+            ) {
+              void sendLayoutFeedback({
+                kind: "candidate-rejected",
+                candidateId: selectedCandidate.id,
+                scoreFeatures: selectedCandidate.score,
+              });
+            }
             setAdaptiveLayout(candidate.layout);
             setLayoutScore(candidate.score.total);
+            setSelectedCandidate({
+              id: candidate.id,
+              score: candidate.score,
+            });
+            layoutBaselineRef.current = blocks.map((block) => ({ ...block }));
+            void sendLayoutFeedback({
+              kind: "candidate-selected",
+              candidateId: candidate.id,
+              scoreFeatures: candidate.score,
+            });
             setStatus("Unsaved");
           }}
         />
@@ -421,13 +510,13 @@ function AdaptivePreview({
   candidates: Array<{
     id: string;
     rank?: number;
-    score: { total: number };
+    score: CandidateScore;
     layout: AdaptiveLayoutResult;
   }>;
   onSelectCandidate: (candidate: {
     id: string;
     rank?: number;
-    score: { total: number };
+    score: CandidateScore;
     layout: AdaptiveLayoutResult;
   }) => void;
 }) {
