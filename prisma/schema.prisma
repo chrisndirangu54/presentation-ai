@@ -1305,6 +1305,7 @@ model LayoutPreferenceProfile {
 
 model LayoutPerformanceAggregate {
     id             String    @id @default(cuid())
+    publishedId    String?
     workspaceId    String?
     artifactId     String?
     candidateId    String?
@@ -1321,6 +1322,7 @@ model LayoutPerformanceAggregate {
 
     @@index([workspaceId, target])
     @@index([artifactId, candidateId])
+    @@index([publishedId, candidateId])
 }
 
 model LayoutLearningRun {
