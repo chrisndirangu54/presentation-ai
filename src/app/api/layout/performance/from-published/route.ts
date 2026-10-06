@@ -112,21 +112,67 @@ export async function POST(request: Request) {
   const performanceScore =
     completionRate * 0.5 + interactionRate * 0.25 + conversionRate * 0.25;
 
-  const aggregate = await db.layoutPerformanceAggregate.create({
-    data: {
-      workspaceId: artifact.workspaceId,
-      artifactId: artifact.id,
+  const existingAggregate = await db.layoutPerformanceAggregate.findFirst({
+    where: {
+      publishedId: published.id,
       candidateId: learning.candidateId,
-      target: learning.target,
-      audience: learning.audience,
-      views,
-      completions,
-      totalDurationMs: BigInt(totalDurationMs),
-      interactions,
-      conversions,
-      performanceScore,
     },
   });
+
+  const unchanged =
+    existingAggregate?.views === views &&
+    existingAggregate.completions === completions &&
+    existingAggregate.interactions === interactions &&
+    existingAggregate.conversions === conversions &&
+    Number(existingAggregate.totalDurationMs) === totalDurationMs;
+
+  const aggregate = existingAggregate
+    ? await db.layoutPerformanceAggregate.update({
+        where: { id: existingAggregate.id },
+        data: {
+          views,
+          completions,
+          totalDurationMs: BigInt(totalDurationMs),
+          interactions,
+          conversions,
+          performanceScore,
+        },
+      })
+    : await db.layoutPerformanceAggregate.create({
+        data: {
+          publishedId: published.id,
+          workspaceId: artifact.workspaceId,
+          artifactId: artifact.id,
+          candidateId: learning.candidateId,
+          target: learning.target,
+          audience: learning.audience,
+          views,
+          completions,
+          totalDurationMs: BigInt(totalDurationMs),
+          interactions,
+          conversions,
+          performanceScore,
+        },
+      });
+
+  if (unchanged) {
+    return NextResponse.json({
+      aggregate: {
+        ...aggregate,
+        totalDurationMs: Number(aggregate.totalDurationMs),
+      },
+      rates: {
+        completionRate,
+        interactionRate,
+        conversionRate,
+        performanceScore,
+      },
+      learning: {
+        skipped: true,
+        reason: "No new engagement since the previous sync",
+      },
+    });
+  }
 
   const feedback = await recordLayoutFeedback({
     context: {
