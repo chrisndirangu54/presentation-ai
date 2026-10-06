@@ -306,3 +306,24 @@ Chart blocks can carry `chartType` metadata. The solver adjusts chart height tow
 Relationship-aware grouping uses semantic edges such as `supports`, `visualizes`, `contains`, `references` and `reuses` so connected content is rewarded for remaining visually close or on the same page.
 
 The collaborative artifact canvas shows the top-ranked candidates with their numeric scores, allowing a user to select an alternate before saving the adaptive layout.
+
+
+## Learned layout intelligence
+
+The `/layout-learning` workspace adds an auditable online preference layer above the deterministic constraint solver.
+
+The system learns gradually from three classes of signal:
+
+- explicit candidate selection/rejection in the editor
+- correction effort after an auto-layout is selected
+- viewer outcomes from published engagement analytics
+
+Preference profiles are maintained independently for user, workspace, industry, audience and target-format scopes. Feature weights remain normalized across relationship proximity, whitespace, visual balance, typography, imagery and chart geometry.
+
+`POST /api/layout/feedback` records editor feedback and incrementally updates scoped preference profiles. `GET /api/layout/preferences` exposes the resolved blended weights used for the current context.
+
+`POST /api/layout/performance` accepts trusted aggregated viewer metrics. `POST /api/layout/performance/from-published` derives completion, interaction and conversion signals directly from existing `EngagementEvent` records for a published artifact. Identical engagement snapshots are not learned twice.
+
+The artifact canvas persists the selected candidate ID, score breakdown, target, industry and audience with the chosen adaptive layout. This lets later publishing analytics map viewer outcomes back to the exact layout that was shown.
+
+Learned weights only rerank candidates that have already been produced by the deterministic solver. Hard quality constraints, safe areas, accessibility checks and publish governance remain outside the learned preference model.
