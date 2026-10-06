@@ -35,9 +35,14 @@ export default async function IntelligencePage() {
             Coordinate research, data, design, brand rules, approvals, publishing and analytics across every artifact format.
           </p>
         </div>
-        <Link className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground" href="/studio">
-          Open Studio
-        </Link>
+        <div className="flex gap-2">
+          <Link className="rounded-md border px-4 py-2 text-sm font-medium" href="/semantic">
+            Semantic Canvas
+          </Link>
+          <Link className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground" href="/studio">
+            Open Studio
+          </Link>
+        </div>
       </header>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
