@@ -122,6 +122,8 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
     Array<{ id: string; rank?: number; score: CandidateScore; layout: AdaptiveLayoutResult }>
   >([]);
   const [workspaceId, setWorkspaceId] = useState<string | undefined>(undefined);
+  const [industry, setIndustry] = useState<string | undefined>(undefined);
+  const [audience, setAudience] = useState<string | undefined>(undefined);
   const [selectedCandidate, setSelectedCandidate] = useState<
     { id: string; score: CandidateScore } | undefined
   >(undefined);
@@ -142,6 +144,7 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
             content: unknown;
             layout?: unknown;
             workspaceId?: string | null;
+            metadata?: unknown;
           };
         };
         const content = (payload.artifact.content ?? {}) as {
@@ -149,6 +152,12 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
         };
         setBlocks(Array.isArray(content.blocks) ? content.blocks : []);
         setWorkspaceId(payload.artifact.workspaceId ?? undefined);
+        const artifactMetadata = (payload.artifact.metadata ?? {}) as {
+          industry?: string;
+          audience?: string;
+        };
+        setIndustry(artifactMetadata.industry);
+        setAudience(artifactMetadata.audience);
 
         const savedLayout = payload.artifact.layout as
           | { adaptive?: AdaptiveLayoutResult }
@@ -281,6 +290,8 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
       body: JSON.stringify({
         workspaceId,
         artifactId,
+        industry,
+        audience,
         candidateId: input.candidateId,
         target: layoutTarget,
         kind: input.kind,
@@ -298,7 +309,20 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         content: { blocks },
-        layout: adaptiveLayout ? { adaptive: adaptiveLayout } : undefined,
+        layout: adaptiveLayout
+          ? {
+              adaptive: adaptiveLayout,
+              learning: selectedCandidate
+                ? {
+                    candidateId: selectedCandidate.id,
+                    score: selectedCandidate.score,
+                    target: layoutTarget,
+                    industry,
+                    audience,
+                  }
+                : undefined,
+            }
+          : undefined,
       }),
     });
     setStatus(
@@ -336,6 +360,8 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
         graph: graphFromBlocks(blocks),
         target: layoutTarget,
         workspaceId,
+        industry,
+        audience,
       }),
     });
 
