@@ -522,6 +522,7 @@ model Artifact {
     createdAt   DateTime     @default(now())
     updatedAt   DateTime     @updatedAt
     visualSpecs VisualSpec[]
+    bindings    ArtifactBinding[]
 
     @@index([workspaceId, kind])
 }
@@ -971,4 +972,250 @@ model WorkflowRun {
 
     @@index([workflowId, createdAt])
     @@index([status, createdAt])
+}
+
+
+enum SemanticNodeKind {
+    FACT
+    CLAIM
+    METRIC
+    TEXT
+    IMAGE
+    CHART
+    DIAGRAM
+    TABLE
+    COMPONENT
+    PERSON
+    ORGANIZATION
+    PRODUCT
+    SOURCE
+    ASSET
+    SECTION
+}
+
+enum SemanticEdgeKind {
+    SUPPORTS
+    DERIVED_FROM
+    REFERENCES
+    CONTAINS
+    UPDATES
+    VISUALIZES
+    CONTRADICTS
+    RELATED_TO
+    OWNED_BY
+    REUSES
+}
+
+enum DataFreshnessStatus {
+    FRESH
+    STALE
+    UNKNOWN
+    ERROR
+}
+
+enum ClassificationLevel {
+    PUBLIC
+    INTERNAL
+    CONFIDENTIAL
+    RESTRICTED
+}
+
+enum QualityGateStatus {
+    PASS
+    WARN
+    BLOCK
+}
+
+model SemanticNode {
+    id          String           @id @default(cuid())
+    workspaceId String?
+    kind        SemanticNodeKind
+    key         String?
+    label       String
+    value       Json?
+    text        String?          @db.Text
+    unit        String?
+    locale      String?
+    sourceUrl   String?
+    sourceHash  String?
+    version     Int              @default(1)
+    metadata    Json?
+    createdAt   DateTime         @default(now())
+    updatedAt   DateTime         @updatedAt
+    outgoing    SemanticEdge[]   @relation("SemanticFrom")
+    incoming    SemanticEdge[]   @relation("SemanticTo")
+    bindings    ArtifactBinding[]
+    metric      MetricDefinition?
+
+    @@index([workspaceId, kind])
+    @@index([workspaceId, key])
+}
+
+model SemanticEdge {
+    id        String           @id @default(cuid())
+    fromId    String
+    toId      String
+    kind      SemanticEdgeKind
+    weight    Float?
+    metadata  Json?
+    createdAt DateTime         @default(now())
+    from      SemanticNode     @relation("SemanticFrom", fields: [fromId], references: [id], onDelete: Cascade)
+    to        SemanticNode     @relation("SemanticTo", fields: [toId], references: [id], onDelete: Cascade)
+
+    @@unique([fromId, toId, kind])
+    @@index([toId, kind])
+}
+
+model ArtifactBinding {
+    id          String       @id @default(cuid())
+    artifactId  String
+    semanticId  String
+    elementId   String
+    property    String
+    transform   Json?
+    locked      Boolean      @default(false)
+    createdAt   DateTime     @default(now())
+    updatedAt   DateTime     @updatedAt
+    artifact    Artifact     @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+    semantic    SemanticNode @relation(fields: [semanticId], references: [id], onDelete: Cascade)
+
+    @@unique([artifactId, elementId, property])
+    @@index([semanticId])
+}
+
+model MetricDefinition {
+    id            String       @id @default(cuid())
+    semanticId    String       @unique
+    workspaceId   String
+    name          String
+    description   String?
+    formula       String?
+    aggregation   String?
+    unit          String?
+    dimensions    String[]
+    authoritative Boolean      @default(false)
+    refreshRule   Json?
+    semantic      SemanticNode @relation(fields: [semanticId], references: [id], onDelete: Cascade)
+    snapshots     MetricSnapshot[]
+
+    @@unique([workspaceId, name])
+}
+
+model MetricSnapshot {
+    id          String           @id @default(cuid())
+    metricId    String
+    value       Decimal          @db.Decimal(24, 8)
+    dimensions  Json?
+    sourceRef   String?
+    freshness   DataFreshnessStatus @default(UNKNOWN)
+    observedAt  DateTime
+    createdAt   DateTime         @default(now())
+    metric      MetricDefinition @relation(fields: [metricId], references: [id], onDelete: Cascade)
+
+    @@index([metricId, observedAt])
+}
+
+model DataLineageRecord {
+    id             String    @id @default(cuid())
+    workspaceId    String?
+    artifactId     String?
+    elementId      String?
+    semanticId     String?
+    sourceType     String
+    sourceRef      String?
+    operation      String
+    inputHash      String?
+    outputHash     String?
+    transformation Json?
+    observedAt     DateTime?
+    createdAt      DateTime  @default(now())
+
+    @@index([artifactId, elementId])
+    @@index([semanticId])
+}
+
+model LinkedComponentInstance {
+    id          String   @id @default(cuid())
+    componentId String
+    artifactId  String
+    elementId   String
+    version     Int      @default(1)
+    overrides   Json?
+    detached    Boolean  @default(false)
+    syncedAt    DateTime?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    @@unique([artifactId, elementId])
+    @@index([componentId])
+}
+
+model QualityGatePolicy {
+    id          String    @id @default(cuid())
+    workspaceId String
+    name        String
+    enabled     Boolean   @default(true)
+    rules       Json
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+
+    @@index([workspaceId, enabled])
+}
+
+model QualityGateRun {
+    id          String            @id @default(cuid())
+    workspaceId String?
+    artifactId  String
+    status      QualityGateStatus
+    score       Int
+    findings    Json
+    createdAt   DateTime          @default(now())
+
+    @@index([artifactId, createdAt])
+    @@index([workspaceId, status])
+}
+
+model AssetFingerprint {
+    id          String    @id @default(cuid())
+    workspaceId String?
+    assetUrl    String
+    kind        String
+    hash        String
+    perceptualHash String?
+    metadata    Json?
+    createdAt   DateTime  @default(now())
+
+    @@index([workspaceId, kind])
+    @@index([hash])
+}
+
+model TemplateFingerprint {
+    id          String    @id @default(cuid())
+    templateId  String    @unique
+    structureHash String
+    styleHash   String?
+    semanticHash String?
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+}
+
+model DocumentClassification {
+    id          String              @id @default(cuid())
+    artifactId  String              @unique
+    level       ClassificationLevel @default(INTERNAL)
+    watermark   String?
+    rules       Json?
+    updatedAt   DateTime            @updatedAt
+}
+
+model PublishGateOverride {
+    id          String    @id @default(cuid())
+    artifactId  String
+    gateRunId   String
+    actorId     String
+    reason      String    @db.Text
+    expiresAt   DateTime?
+    createdAt   DateTime  @default(now())
+
+    @@index([artifactId, createdAt])
 }
