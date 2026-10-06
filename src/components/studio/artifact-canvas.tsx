@@ -89,7 +89,7 @@ function graphFromBlocks(blocks: ArtifactBlock[]): SemanticGraph {
       text: block.text,
       value: block.data,
       metadata:
-        block.imageUrl || block.focalPoint || block.chartType
+        (block.imageUrl ?? block.focalPoint ?? block.chartType) !== undefined
           ? {
               imageUrl: block.imageUrl,
               focalPoint: block.focalPoint,
