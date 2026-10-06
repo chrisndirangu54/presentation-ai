@@ -4,6 +4,7 @@ import GoogleProvider from "next-auth/providers/google";
 import { env } from "@/env";
 import { db } from "@/server/db";
 import NextAuth, { type Session, type DefaultSession } from "next-auth";
+
 declare module "next-auth" {
   interface Session extends DefaultSession {
     user: {
@@ -12,6 +13,7 @@ declare module "next-auth" {
       location?: string;
       role: string;
       isAdmin: boolean;
+      isSuperAdmin: boolean;
     } & DefaultSession["user"];
   }
 
@@ -20,6 +22,9 @@ declare module "next-auth" {
     role: string;
   }
 }
+
+const isAdminRole = (role?: string | null) =>
+  role === "ADMIN" || role === "SUPER_ADMIN";
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
   trustHost: true,
@@ -36,27 +41,27 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         token.picture = user.image;
         token.location = (user as Session["user"]).location;
         token.role = user.role;
-        token.isAdmin = user.role === "ADMIN";
+        token.isAdmin = isAdminRole(user.role);
+        token.isSuperAdmin = user.role === "SUPER_ADMIN";
       }
 
-      // Handle updates
       if (trigger === "update" && (session as Session)?.user) {
-        const user = await db.user.findUnique({
+        const dbUser = await db.user.findUnique({
           where: { id: token.id as string },
         });
-        console.log("Session", session, user);
+
         if (session) {
           token.name = (session as Session).user.name;
           token.image = (session as Session).user.image;
           token.picture = (session as Session).user.image;
           token.location = (session as Session).user.location;
-          token.role = (session as Session).user.role;
-          token.isAdmin = (session as Session).user.role === "ADMIN";
         }
-        if (user) {
-          token.hasAccess = user?.hasAccess ?? false;
-          token.role = user.role;
-          token.isAdmin = user.role === "ADMIN";
+
+        if (dbUser) {
+          token.hasAccess = dbUser.hasAccess ?? false;
+          token.role = dbUser.role;
+          token.isAdmin = isAdminRole(dbUser.role);
+          token.isSuperAdmin = dbUser.role === "SUPER_ADMIN";
         }
       }
 
@@ -67,7 +72,8 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       session.user.hasAccess = token.hasAccess as boolean;
       session.user.location = token.location as string;
       session.user.role = token.role as string;
-      session.user.isAdmin = token.role === "ADMIN";
+      session.user.isAdmin = isAdminRole(token.role as string);
+      session.user.isSuperAdmin = token.role === "SUPER_ADMIN";
       return session;
     },
     async signIn({ user, account }) {

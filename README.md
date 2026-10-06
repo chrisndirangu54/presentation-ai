@@ -1,210 +1,101 @@
-# ALLWEONE® AI Presentation Generator (Gamma Alternative)
-⭐ Help us reach more developers and grow the ALLWEONE community. Star this repo!
+# Presentation AI
 
-https://github.com/user-attachments/assets/a21dbd49-75b8-4822-bcec-a75b581d9c60
+An extensible AI presentation workspace for research-grounded, brand-aware, collaborative slide creation.
 
+## What it does
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Next.js](https://img.shields.io/badge/Next.js-000000?logo=next.js&logoColor=white)](https://nextjs.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+Presentation AI combines the existing visual slide editor with an architecture for:
 
-An open-source inspired by gamma.app ,AI-powered presentation generator that creates beautiful Slides with AI, customizable slides in minutes. This tool is part of the broader ALLWEONE AI platform.
+- AI-generated outlines, slides, speaker notes and narrative planning
+- an AI Presentation Director that plans a deck around audience, objective, evidence and time
+- PDF, Office, CSV, URL, YouTube and Google Drive research ingestion
+- citation-aware RAG and fact-review workflows
+- model routing across text, image, video, speech and search providers
+- brand kits, reusable templates and design governance
+- comments, version history, workspaces and role-based access control
+- usage metering, audit logs, API credentials and webhooks
+- export adapters for PowerPoint, PDF, Google Slides, Word, PNG, SVG and JSON
+- an admin control plane for providers and platform capabilities
 
-[Live Demo](https://allweone.com/presentations) | [Video Tutorial](https://www.youtube.com/watch?v=UUePLJeFqVQ)
+The current editor remains the core authoring surface while new services are introduced as independent modules so they can be activated incrementally.
 
-## 🌟 Features
+## Stack
 
-- **AI-Powered Content Generation**: Create complete presentations on any topic with AI
-- **Customizable Slides**: Choose the number of slides, language, and page style
-- **Editable Outlines**: Review and modify AI-generated outlines before finalizing
-- **Multiple Themes**: 9 built-in themes with more coming soon
-- **Custom Theme Creation**: Create and save your own themes from scratch
-- **Image Generation**: Choose different AI image generation models for your slides
-- **Audience-Focused Styles**: Select between professional and casual presentation styles
-- **Real-Time Generation**: Watch your presentation build live as content is created
-- **Full Editability**: Modify text, fonts, and design elements as needed
-- **Presentation Mode**: Present directly from the application
-- **Auto-Save**: Everything saves automatically as you work
+- Next.js 14 + React 18 + TypeScript
+- Prisma + PostgreSQL
+- NextAuth
+- Tailwind CSS + Radix UI
+- Plate Editor / ProseMirror / Slate
+- OpenAI + LangChain
+- Together AI
+- Recharts
+- Zustand
+- UploadThing
 
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Node.js 18.x or higher
-- npm or yarn
-- OpenAI API key (for AI generation features)
-- Together AI API key (for Image generation)
-- Google Client ID and Secret for authentication feature
-
-### Installation
-
-1. Clone the repository:
-
-   ```bash
-   git clone git@github.com:allweonedev/presentation-ai.git
-   cd presentation-ai
-   ```
-
-2. Install dependencies:
-
-   ```bash
-   pnpm install
-   ```
-
-3. Set up environment variables:
-   Create a `.env` file in the root directory with:
-
-   ```
-   # AI Providers
-   OPENAI_API_KEY=""
-   TOGETHER_AI_API_KEY=""
-
-
-   # For Next Auth
-   NEXTAUTH_SECRET=""
-   NEXTAUTH_URL=""
-   NEXTAUTH_URL="http://192.168.1.83:3000"
-
-   # Next Auth Google Provider
-   GOOGLE_CLIENT_ID=""
-   GOOGLE_CLIENT_SECRET=""
-
-   # For Uploadthing
-   UPLOADTHING_TOKEN=""
-
-   # PostgreSQL Database URL
-   DATABASE_URL="postgresql://username:password@localhost:5432/presentation_ai"
-
-   ```
-
-   Note: You need to set up a PostgreSQL database for testing the application.
-
-4. Set up the database:
-
-   ```bash
-   pnpm db:push
-   ```
-
-5. Start the development server:
-
-   ```bash
-   pnpm dev
-   ```
-
-6. Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
-
-## 💻 Usage
-
-### Creating a Presentation
-
-1. Navigate to the dashboard
-2. Enter your presentation topic
-3. Choose the number of slides (recommended: 5-10)
-4. Select your preferred language
-5. Choose a page style
-6. Click "Generate Outline"
-7. Review and edit the AI-generated outline
-8. Select a theme for your presentation
-9. Choose an image generation model
-10. Select your presentation style (Professional/Casual)
-11. Click "Generate Presentation"
-12. Wait for the AI to create your slides in real-time
-13. Preview, edit, and refine your presentation as needed
-14. Present directly from the app or export your presentation
-
-### Custom Themes
-
-1. Click "Create New Theme"
-2. Start from scratch or derive from an existing theme
-3. Customize colors, fonts, and layout
-4. Save your theme for future use
-
-## 🧰 Tech Stack
-
-This project is built with:
-
-- **Next.js**: React framework for server-rendered applications
-- **React**: UI library for building user interfaces
-- **Prisma**: Database ORM with PostgreSQL
-- **Tailwind CSS**: Utility-first CSS framework
-- **TypeScript**: Typed JavaScript
-- **OpenAI API**: For AI content generation
-- **Radix UI**: Headless UI components
-- **Plate Editor**: Rich text editing system for handling text, images, and slide components
-- **Authentication**: NextAuth.js for user authentication
-- **UploadThing**: File uploads
-- **DND Kit**: Drag and drop functionality
-
-## 🛠️ Project Structure
+## Architecture
 
 ```
-presentation/
-├── .next/               # Next.js build output
-├── node_modules/        # Dependencies
-├── prisma/              # Database schema
-│   └── schema.prisma    # Prisma database model
-├── src/                 # Source code
-│   ├── app/             # Next.js app router
-│   ├── components/      # Reusable UI components
-│   │   ├── auth/        # Authentication components
-│   │   ├── presentation/  # Presentation-related components
-│   │   │   ├── dashboard/   # Dashboard UI
-│   │   │   ├── editor/      # Presentation editor
-│   │   │   │   ├── custom-elements/  # Custom editor elements
-│   │   │   │   ├── dnd/              # Drag and drop functionality
-│   │   │   │   └── native-elements/  # Native editor elements
-│   │   │   ├── outline/     # Presentation outline components
-│   │   │   ├── theme/       # Theme-related components
-│   │   │   └── utils/       # Presentation utilities
-│   │   ├── prose-mirror/  # ProseMirror editor components for the outline part
-│   │   ├── text-editor/   # Text editor components
-│   │   │   ├── hooks/       # Editor hooks
-│   │   │   ├── lib/         # Editor libraries
-│   │   │   ├── plate-ui/    # Plate editor UI components
-│   │   │   └── plugins/     # Editor plugins
-│   │   └── ui/           # Shared UI components
-│   ├── hooks/           # Custom React hooks
-│   ├── lib/             # Utility functions and shared code
-│   ├── provider/        # Context providers
-│   ├── server/          # Server-side code
-│   ├── states/          # State management
-│   ├── middleware.ts    # Next.js middleware
-│   └── env.js           # Environment configuration
-├── .env                 # Environment variables
-├── .env.example         # Example environment variables
-├── next.config.js       # Next.js configuration
-├── package.json         # Project dependencies and scripts
-├── tailwind.config.ts   # Tailwind CSS configuration
-└── tsconfig.json        # TypeScript configuration
+src/
+├── app/
+│   ├── admin/                    # admin control plane
+│   ├── api/                      # generation and integration routes
+│   └── presentation/             # existing dashboard/editor
+├── lib/
+│   ├── ai/
+│   │   ├── presentation-director.ts
+│   │   └── provider-registry.ts
+│   ├── export/
+│   │   └── adapters.ts
+│   ├── platform/
+│   │   └── capabilities.ts
+│   └── research/
+│       └── types.ts
+├── server/
+└── states/
 ```
 
-## 🤝 Contributing
+The expanded Prisma schema adds workspaces, members, brand kits, templates, versions, comments, sources, citations, provider configuration, encrypted credential records, webhooks, export jobs, usage events and audit logs.
 
-We welcome contributions to the ALLWEONE Presentation Generator! Here's how you can help:
+## Setup
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+```bash
+pnpm install
+cp .env.example .env
+pnpm db:push
+pnpm dev
+```
 
-Please read our [Contributing Guidelines](CONTRIBUTING.md) for more details.
+Open http://localhost:3000. The root route now sends users to the presentation workspace.
 
-## 📝 License
+## Provider configuration
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Only configure providers you intend to use. The registry supports independent routing by capability, so text generation, image generation, narration and research can use different models.
 
-## 🙏 Acknowledgements
+See `.env.example` for supported configuration placeholders. Secrets should never be stored in plaintext database fields; database credential records are designed to hold encrypted ciphertext or secret-manager references.
 
-- [OpenAI](https://openai.com/) for AI generation capabilities
-- [Plate Editor](https://plate.udecode.io/) for rich text editing
-- [Radix UI](https://www.radix-ui.com/) for accessible UI components
-- [Next.js](https://nextjs.org/) for the React framework
-- All our open-source [contributors](https://github.com/allweonedev/presentation-ai/graphs/contributors)
+## Database migration
 
+This upgrade extends the Prisma schema substantially. For development:
 
+```bash
+pnpm db:push
+```
 
+For production, generate and review a migration instead of pushing directly.
 
-Built with ❤️ by the ALLWEONE™ team 🇺🇸🇧🇷🇳🇵🇮🇳🇨🇳🇯🇵🇸🇬🇩🇪🏴󠁧󠁢󠁥󠁮󠁧󠁿🇺🇦🇰🇿🇷🇺🇦🇪🇸🇦🇰🇷🇹🇭🇮🇩🇲🇽🇬🇹🇫🇷🇮🇱🇻🇳🇵🇹🇮🇹🇨🇱🇨🇦🇵🇰🇸🇪🇱🇧
+## Security model
 
-For any questions or support, please open an issue on GitHub or contact us at Discord https://discord.gg/wSVNudUBdY
+The platform now has a foundation for:
+
+- SUPER_ADMIN / ADMIN / USER application roles
+- workspace OWNER / ADMIN / EDITOR / COMMENTER / VIEWER roles
+- audit logging
+- encrypted API credential storage
+- usage accounting
+- workspace isolation
+
+Authorization still needs to be enforced on every new API/action endpoint as those endpoints are implemented.
+
+## Implementation status
+
+The repository now contains the domain model and modular foundation for the requested workspace. Existing generation and editing functionality remains intact. Provider-specific ingestion workers, true real-time collaborative transport, billing webhooks, and binary PPTX/PDF rendering require their corresponding external services or runtime workers and should be connected through the new abstractions rather than hard-coded into the editor.
