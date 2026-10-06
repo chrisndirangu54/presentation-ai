@@ -29,6 +29,7 @@ export default async function StudioPage() {
             <Link className="underline underline-offset-4" href="/intelligence">Creative intelligence</Link>
             <Link className="underline underline-offset-4" href="/semantic">Semantic canvas</Link>
             <Link className="underline underline-offset-4" href="/adaptive">Adaptive layouts</Link>
+            <Link className="underline underline-offset-4" href="/layout-learning">Learned layouts</Link>
             <Link className="underline underline-offset-4" href="/marketplace">Browse marketplace</Link>
           </div>
         </div>
