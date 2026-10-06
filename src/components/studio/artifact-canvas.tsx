@@ -20,12 +20,18 @@ import {
   BarChart3,
   GripVertical,
   Image as ImageIcon,
+  LayoutTemplate,
   Plus,
   Save,
   Table2,
   Type,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type {
+  AdaptiveLayoutResult,
+  LayoutTarget,
+} from "@/lib/layout/engine";
+import type { SemanticGraph, SemanticNodeKind } from "@/lib/semantic/graph";
 
 export interface ArtifactBlock {
   id: string;
@@ -44,12 +50,62 @@ const blockTypes: ArtifactBlock["type"][] = [
   "callout",
 ];
 
+const layoutTargets: Array<{ value: LayoutTarget; label: string }> = [
+  { value: "deck-16x9", label: "Deck 16:9" },
+  { value: "a4-portrait", label: "A4 Portrait" },
+  { value: "dashboard-desktop", label: "Dashboard" },
+  { value: "mobile", label: "Mobile" },
+  { value: "infographic", label: "Infographic" },
+  { value: "poster-a3", label: "Poster A3" },
+  { value: "social-square", label: "Social Square" },
+  { value: "social-portrait", label: "Social Portrait" },
+];
+
+function semanticKind(type: ArtifactBlock["type"]): SemanticNodeKind {
+  switch (type) {
+    case "heading":
+      return "section";
+    case "image":
+      return "image";
+    case "chart":
+      return "chart";
+    case "table":
+      return "table";
+    case "callout":
+      return "claim";
+    default:
+      return "text";
+  }
+}
+
+function graphFromBlocks(blocks: ArtifactBlock[]): SemanticGraph {
+  return {
+    nodes: blocks.map((block) => ({
+      id: block.id,
+      kind: semanticKind(block.type),
+      label: block.text?.slice(0, 80) ?? block.type,
+      text: block.text,
+      value: block.data,
+      metadata: block.imageUrl ? { imageUrl: block.imageUrl } : undefined,
+    })),
+    edges: [],
+  };
+}
+
 export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
   const [blocks, setBlocks] = useState<ArtifactBlock[]>([]);
   const [status, setStatus] = useState("Loading");
   const [collaboration, setCollaboration] = useState<
     "disabled" | "connecting" | "connected" | "offline"
   >("disabled");
+  const [layoutTarget, setLayoutTarget] =
+    useState<LayoutTarget>("deck-16x9");
+  const [adaptiveLayout, setAdaptiveLayout] =
+    useState<AdaptiveLayoutResult | null>(null);
+  const [layoutStatus, setLayoutStatus] = useState<
+    "idle" | "generating" | "ready" | "error"
+  >("idle");
+
   const roomRef = useRef<Y.Map<string> | null>(null);
   const remoteJsonRef = useRef<string | null>(null);
   const sensors = useSensors(
@@ -61,12 +117,25 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
       .then(async (response) => {
         if (!response.ok) throw new Error("Failed to load artifact");
         const payload = (await response.json()) as {
-          artifact: { content: unknown };
+          artifact: {
+            content: unknown;
+            layout?: unknown;
+          };
         };
         const content = (payload.artifact.content ?? {}) as {
           blocks?: ArtifactBlock[];
         };
         setBlocks(Array.isArray(content.blocks) ? content.blocks : []);
+
+        const savedLayout = payload.artifact.layout as
+          | { adaptive?: AdaptiveLayoutResult }
+          | undefined;
+        if (savedLayout?.adaptive) {
+          setAdaptiveLayout(savedLayout.adaptive);
+          setLayoutTarget(savedLayout.adaptive.target);
+          setLayoutStatus("ready");
+        }
+
         setStatus("Saved");
       })
       .catch(() => setStatus("Offline"));
@@ -151,6 +220,10 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
   }, [blocks, collaboration]);
 
   const ids = useMemo(() => blocks.map((block) => block.id), [blocks]);
+  const blockMap = useMemo(
+    () => new Map(blocks.map((block) => [block.id, block])),
+    [blocks],
+  );
 
   const onDragEnd = (event: DragEndEvent) => {
     if (!event.over || event.active.id === event.over.id) return;
@@ -165,9 +238,38 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
     const response = await fetch(`/api/artifacts/${artifactId}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ content: { blocks } }),
+      body: JSON.stringify({
+        content: { blocks },
+        layout: adaptiveLayout ? { adaptive: adaptiveLayout } : undefined,
+      }),
     });
-    setStatus(response.ok ? "Saved" : response.status === 403 ? "Read only" : "Error");
+    setStatus(
+      response.ok ? "Saved" : response.status === 403 ? "Read only" : "Error",
+    );
+  };
+
+  const generateLayout = async () => {
+    setLayoutStatus("generating");
+    const response = await fetch("/api/layout/adapt", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        graph: graphFromBlocks(blocks),
+        target: layoutTarget,
+      }),
+    });
+
+    if (!response.ok) {
+      setLayoutStatus("error");
+      return;
+    }
+
+    const payload = (await response.json()) as {
+      layout: AdaptiveLayoutResult;
+    };
+    setAdaptiveLayout(payload.layout);
+    setLayoutStatus("ready");
+    setStatus("Unsaved");
   };
 
   const addBlock = (type: ArtifactBlock["type"]) => {
@@ -198,15 +300,43 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-2 text-sm text-muted-foreground">
           <span>{status}</span>
           <span>· Collaboration: {collaboration}</span>
+          <span>· Layout: {layoutStatus}</span>
         </div>
         <div className="flex flex-wrap gap-2">
+          <select
+            value={layoutTarget}
+            onChange={(event) =>
+              setLayoutTarget(event.target.value as LayoutTarget)
+            }
+            className="rounded-md border bg-background px-3 py-2 text-sm"
+            aria-label="Adaptive layout target"
+          >
+            {layoutTargets.map((target) => (
+              <option key={target.value} value={target.value}>
+                {target.label}
+              </option>
+            ))}
+          </select>
+          <Button
+            variant="outline"
+            onClick={() => void generateLayout()}
+            disabled={!blocks.length || layoutStatus === "generating"}
+          >
+            <LayoutTemplate className="mr-2 h-4 w-4" />
+            Auto layout
+          </Button>
           {blockTypes.map((type) => (
-            <Button key={type} variant="outline" size="sm" onClick={() => addBlock(type)}>
+            <Button
+              key={type}
+              variant="outline"
+              size="sm"
+              onClick={() => addBlock(type)}
+            >
               <Plus className="mr-1 h-4 w-4" />
               {type}
             </Button>
@@ -217,6 +347,10 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
           </Button>
         </div>
       </div>
+
+      {adaptiveLayout && (
+        <AdaptivePreview layout={adaptiveLayout} blockMap={blockMap} />
+      )}
 
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         <SortableContext items={ids} strategy={verticalListSortingStrategy}>
@@ -237,6 +371,78 @@ export function ArtifactCanvas({ artifactId }: { artifactId: string }) {
         </SortableContext>
       </DndContext>
     </div>
+  );
+}
+
+function AdaptivePreview({
+  layout,
+  blockMap,
+}: {
+  layout: AdaptiveLayoutResult;
+  blockMap: Map<string, ArtifactBlock>;
+}) {
+  return (
+    <section className="rounded-2xl border bg-card p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div>
+          <h2 className="font-semibold">Adaptive preview</h2>
+          <p className="text-sm text-muted-foreground">
+            {layout.target} · {layout.pages.length} page
+            {layout.pages.length === 1 ? "" : "s"}
+          </p>
+        </div>
+        {layout.warnings.length > 0 && (
+          <span className="rounded-full border px-3 py-1 text-xs">
+            {layout.warnings.length} warning
+            {layout.warnings.length === 1 ? "" : "s"}
+          </span>
+        )}
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        {layout.pages.map((page) => (
+          <div key={page.index} className="overflow-auto rounded-xl bg-muted p-3">
+            <div
+              className="relative mx-auto origin-top-left overflow-hidden border bg-background shadow-sm"
+              style={{
+                width: Math.min(page.width, 720),
+                aspectRatio: `${page.width} / ${page.height}`,
+              }}
+            >
+              {page.elements.map((element) => {
+                const block = element.semanticId
+                  ? blockMap.get(element.semanticId)
+                  : undefined;
+                const scale = Math.min(720 / page.width, 1);
+                return (
+                  <div
+                    key={element.id}
+                    className="absolute overflow-hidden rounded-md border bg-card p-2 text-xs"
+                    style={{
+                      left: element.x * scale,
+                      top: element.y * scale,
+                      width: element.width * scale,
+                      height: element.height * scale,
+                    }}
+                  >
+                    {block?.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={block.imageUrl}
+                        alt={block.text ?? ""}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="line-clamp-6">{block?.text ?? element.kind}</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

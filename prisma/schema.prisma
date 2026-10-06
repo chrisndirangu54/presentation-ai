@@ -1219,3 +1219,30 @@ model PublishGateOverride {
 
     @@index([artifactId, createdAt])
 }
+
+
+model AdaptiveLayoutProfile {
+    id          String    @id @default(cuid())
+    workspaceId String?
+    name        String
+    target      String
+    constraints Json
+    brandTokens Json?
+    isDefault   Boolean   @default(false)
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+
+    @@index([workspaceId, target])
+}
+
+model LayoutSnapshot {
+    id          String    @id @default(cuid())
+    artifactId  String
+    target      String
+    layout      Json
+    quality     Json?
+    sourceHash  String?
+    createdAt   DateTime  @default(now())
+
+    @@index([artifactId, target, createdAt])
+}
